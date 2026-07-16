@@ -1,0 +1,10 @@
+## Interface: 110105
+## Title: NeatPlates: Graphite
+## IconTexture: Interface\AddOns\NeatPlates\Media\NeatPlatesIcon.tga
+## Notes: Minimalisty
+## Author: Binny
+## Dependencies: NeatPlates, NeatPlatesHub
+
+Graphite.lua
+
+

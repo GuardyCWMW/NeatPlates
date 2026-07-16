@@ -1,0 +1,7 @@
+## Interface: 30404
+## Title: NeatPlates Widgets
+## IconTexture: Interface\AddOns\NeatPlates\Media\NeatPlatesIcon.tga
+## Notes: Library of Widgets
+## Dependencies: NeatPlates
+
+Widgets.xml

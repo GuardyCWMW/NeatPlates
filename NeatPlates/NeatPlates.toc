@@ -1,0 +1,13 @@
+## Interface: 50504
+## Title: NeatPlates
+## IconTexture: Interface\AddOns\NeatPlates\Media\NeatPlatesIcon.tga
+## Notes: Community Edition for MoP Classic (Phase 5+) and TBC Anniversary - Maintained by guardycmw
+## Author: guardycmw (original by Luxocracy and friends)
+## Version: v468-ce5
+## SavedVariables: NeatPlatesSettings
+## SavedVariablesPerCharacter: NeatPlatesOptions
+
+temporary-because-blizzard-forgot-an-include.xml
+embeds.xml
+locales.xml
+NeatPlates.xml

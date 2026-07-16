@@ -1,0 +1,10 @@
+## Interface: 20505, 20506
+## Title: NeatPlates: Alvara
+## IconTexture: Interface\AddOns\NeatPlates\Media\NeatPlatesIcon.tga
+## Notes: Community Edition for MoP Classic (Phase 5+) and TBC Anniversary - Maintained by guardycmw
+## Author: guardycmw (original by Luxocracy and friends)
+## Version: 5a
+## Dependencies: NeatPlates, NeatPlatesHub
+
+NeatPlates_Alvara.lua
+
