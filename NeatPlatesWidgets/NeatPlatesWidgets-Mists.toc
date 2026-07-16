@@ -3,7 +3,7 @@
 ## IconTexture: Interface\AddOns\NeatPlates\Media\NeatPlatesIcon.tga
 ## Notes: NeatPlates Widgets (Community Edition)
 ## Author: guardycmw (original by Luxocracy and friends)
-## Version: v468-ce5
+## Version: v468-ce5.1
 ## Dependencies: NeatPlates
 
 Widgets.xml

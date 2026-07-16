@@ -3,7 +3,7 @@
 ## IconTexture: Interface\AddOns\NeatPlates\Media\NeatPlatesIcon.tga
 ## Notes: Community Edition for MoP Classic (Phase 5+) and TBC Anniversary - Maintained by guardycmw
 ## Author: guardycmw (original by Luxocracy and friends)
-## Version: v468-ce5
+## Version: v468-ce5.1
 ## SavedVariables: NeatPlatesSettings
 ## SavedVariablesPerCharacter: NeatPlatesOptions
 
