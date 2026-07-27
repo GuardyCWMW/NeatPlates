@@ -1,7 +1,7 @@
 ## Interface: 20505, 20506
 ## Title: NeatPlates: Quatre Theme
 ## IconTexture: Interface\AddOns\NeatPlates\Media\NeatPlatesIcon.tga
-## Notes: Community Edition for MoP Classic (Phase 5+) and TBC Anniversary - Maintained by guardycmw
+## Notes: Community Edition for MoP Classic (Phase 5+), Classic Era 1.15.9, and TBC Anniversary - Maintained by guardycmw
 ## Author: guardycmw (original by Luxocracy and friends)
 ## Dependencies: NeatPlates, NeatPlatesHub
 
