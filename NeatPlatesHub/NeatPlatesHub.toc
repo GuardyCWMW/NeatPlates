@@ -1,9 +1,9 @@
-## Interface: 50504
+﻿## Interface: 50504
 ## Title: NeatPlates Hub
 ## IconTexture: Interface\AddOns\NeatPlates\Media\NeatPlatesIcon.tga
 ## Notes: Community Edition configuration panel for MoP Classic (Phase 5+), Classic Era 1.15.9, and TBC Anniversary themes
 ## Author: guardycmw (original by Luxocracy and friends)
-## Version: v468-ce5.1
+## Version: v468-ce5.2
 ## Dependencies: NeatPlates, NeatPlatesWidgets
 ## OptionalDeps: NeatPlatesHubDE, NeatPlatesHubES, NeatPlatesHubMX, NeatPlatesHubFR, NeatPlatesHubKR, NeatPlatesHubRU, NeatPlatesHubCN, NeatPlatesHubTW
 ## SavedVariables: NeatPlatesHubSettings
@@ -22,3 +22,4 @@ functions\Text.lua
 functions\Widgets.lua
 
 Hub.lua
+

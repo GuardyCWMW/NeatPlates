@@ -1,7 +1,8 @@
-## Interface: 11507
+﻿## Interface: 11507, 11509
 ## Title: NeatPlates Widgets
 ## IconTexture: Interface\AddOns\NeatPlates\Media\NeatPlatesIcon.tga
-## Notes: Library of Widgets
+## Notes: NeatPlates Widgets for MoP Classic (Phase 5+), Classic Era 1.15.9, and TBC Anniversary
 ## Dependencies: NeatPlates
 
 Widgets.xml
+

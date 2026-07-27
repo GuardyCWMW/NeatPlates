@@ -1,9 +1,10 @@
-## Interface: 11507
+﻿## Interface: 11507, 11509
 ## Title: NeatPlates Hub
 ## IconTexture: Interface\AddOns\NeatPlates\Media\NeatPlatesIcon.tga
-## Notes: Provides a common configuration panel for supported themes.
+## Notes: Community Edition configuration panel for MoP Classic (Phase 5+), Classic Era 1.15.9, and TBC Anniversary themes
 ## Author: Luxocracy and friends
 ## Dependencies: NeatPlates, NeatPlatesWidgets
+## Version: v468-ce5.2
 ## OptionalDeps: NeatPlatesHubDE, NeatPlatesHubES, NeatPlatesHubMX, NeatPlatesHubFR, NeatPlatesHubKR, NeatPlatesHubRU, NeatPlatesHubCN, NeatPlatesHubTW
 ## SavedVariables: NeatPlatesHubSettings
 
@@ -21,3 +22,4 @@ functions\Text.lua
 functions\Widgets.lua
 
 Hub.lua
+
