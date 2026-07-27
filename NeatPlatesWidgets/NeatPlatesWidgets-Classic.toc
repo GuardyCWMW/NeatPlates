@@ -2,6 +2,7 @@
 ## Title: NeatPlates Widgets
 ## IconTexture: Interface\AddOns\NeatPlates\Media\NeatPlatesIcon.tga
 ## Notes: NeatPlates Widgets for MoP Classic (Phase 5+), Classic Era 1.15.9, and TBC Anniversary
+## Version: v468-ce5.2
 ## Dependencies: NeatPlates
 
 Widgets.xml

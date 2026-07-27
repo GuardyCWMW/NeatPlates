@@ -1,4 +1,4 @@
-## Interface: 11507
+## Interface: 11507, 11509
 ## Title: NeatPlates: |cffff6060ClassicPlates
 ## IconTexture: Interface\AddOns\NeatPlates\Media\NeatPlatesIcon.tga
 ## Notes: Vanilla-Style Plates.

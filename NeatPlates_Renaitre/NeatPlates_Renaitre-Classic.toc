@@ -1,4 +1,4 @@
-## Interface: 11507
+## Interface: 11507, 11509
 ## Title: NeatPlates:|cffa335ee Renaitre|r
 ## IconTexture: Interface\AddOns\NeatPlates\Media\NeatPlatesIcon.tga
 ## Version: v7.0.3

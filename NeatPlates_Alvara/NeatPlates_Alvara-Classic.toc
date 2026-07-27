@@ -1,4 +1,4 @@
-## Interface: 11507
+## Interface: 11507, 11509
 ## Title: NeatPlates: Alvara
 ## IconTexture: Interface\AddOns\NeatPlates\Media\NeatPlatesIcon.tga
 ## Notes: Made to Alvara's specifications. Very Simple.
