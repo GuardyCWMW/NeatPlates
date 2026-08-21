@@ -8,6 +8,10 @@ local TotemIcons, TotemTypes, TotemDurations = {}, {}, {}
 local TotemFont = "FONTS\\ARIALN.TTF"
 local TotemWatcher
 
+local function IsSecretValue(value)
+	return NEATPLATES_IS_RETAIL and issecretvalue and issecretvalue(value)
+end
+
 local function GetSpellNameAndIcon(spellidentifier)
 	if C_Spell and C_Spell.GetSpellInfo then
 		local info = C_Spell.GetSpellInfo(spellidentifier)
@@ -136,6 +140,7 @@ end
 ----------------------------------------------------------------------------------------
 
 local function getTotemName(name)
+	if NEATPLATES_IS_RETAIL and issecretvalue and issecretvalue(name) then return nil end
 	return string.gsub(name or "", "(%s[XIVxiv]*)$", "")
 end
 local function IsTotem(name)
@@ -178,7 +183,7 @@ end
 
 local function UpdateTotemIconWidget(self, unit)
 	local name = getTotemName(unit.name)
-	local icon = TotemIcons[name]
+	local icon = name and TotemIcons[name]
 	self.unitname = name
 
 	if icon then
@@ -220,13 +225,17 @@ local function UpdateWidgetConfig(frame)
 	local expiration = 0
 	for i=1, MAX_TOTEMS do
 		local exists, name, startTime, duration = GetTotemInfo(i)
-		name = getTotemName(name)
-		if exists then
-			TotemDurations[name] = {
-				['startTime'] = startTime,
-				['duration'] = duration,
-				['expiration'] = startTime+duration + 1 -- Because the given time is off by about a second
-			}
+		-- Retail can protect the complete totem payload in restricted content.
+		-- Do not evaluate or calculate with any part of a protected result.
+		if not IsSecretValue(exists) and not IsSecretValue(name) and not IsSecretValue(startTime) and not IsSecretValue(duration) then
+			name = getTotemName(name)
+			if exists and name then
+				TotemDurations[name] = {
+					['startTime'] = startTime,
+					['duration'] = duration,
+					['expiration'] = startTime+duration + 1 -- Because the given time is off by about a second
+				}
+			end
 		end
 	end
 

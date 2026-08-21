@@ -2,8 +2,97 @@
 -- obj:SetTexCoord(crop.left, crop.right, crop.top, crop.bottom)
 
 local fraction, range, value, barsize, final
+local IS_RETAIL = NEATPLATES_IS_RETAIL
+local RETAIL_STATUSBAR_TEXTURE = "Interface\\Buttons\\WHITE8X8"
+
+local function SetRetailNeutralZone(self)
+	if self.Neutral then self.Neutral:Hide() end
+end
+
+local function SetRetailStatusBarGradient(self, r1, g1, b1, a1, r2, g2, b2, a2)
+	local texture = self:GetStatusBarTexture()
+	if texture and texture.SetGradientAlpha then
+		texture:SetGradientAlpha(self.Orientation or "HORIZONTAL", r1, g1, b1, a1, r2, g2, b2, a2)
+	else
+		self:SetStatusBarColor(r1, g1, b1, a1)
+	end
+end
+
+
+local function SetRetailAllColors(self, rBar, gBar, bBar, aBar, rBackdrop, gBackdrop, bBackdrop, aBackdrop)
+	self:SetStatusBarColor(rBar or 1, gBar or 1, bBar or 1, aBar or 1)
+	self.Backdrop:SetVertexColor(rBackdrop or 1, gBackdrop or 1, bBackdrop or 1, aBackdrop or 1)
+	self.Backdrop.color = {r = rBackdrop or 1, g = gBackdrop or 1, b = bBackdrop or 1, a = aBackdrop or 1}
+end
+
+
+local function SetRetailTexCoord(self, left, right, top, bottom)
+	self.Left, self.Right, self.Top, self.Bottom = left or 0, right or 1, top or 0, bottom or 1
+	local texture = self:GetStatusBarTexture()
+	if texture then
+		texture:SetTexCoord(self.Left, self.Right, self.Top, self.Bottom)
+		self.Bar = texture
+	end
+end
+
+
+local function SetRetailBackdropTexCoord(self, left, right, top, bottom)
+	self.Backdrop:SetTexCoord(left or 0, right or 1, top or 0, bottom or 1)
+end
+
+
+local function SetRetailBackdropTexture(self, texture)
+	self.Backdrop:SetTexture(texture)
+end
+
+
+local function CreateRetailStatusbar(parent)
+	local frame = CreateFrame("StatusBar", nil, parent, NeatPlatesBackdrop)
+	frame:SetSize(1, 1)
+	frame:SetMinMaxValues(0, 1)
+	frame:SetValue(1)
+	frame:SetOrientation("HORIZONTAL")
+	frame:SetStatusBarTexture(RETAIL_STATUSBAR_TEXTURE)
+
+	frame.Orientation = "HORIZONTAL"
+	frame.Left, frame.Right, frame.Top, frame.Bottom = 0, 1, 0, 1
+	frame.Bar = frame:GetStatusBarTexture()
+	frame.Backdrop = frame:CreateTexture(nil, "BACKGROUND")
+	frame.Backdrop:SetAllPoints(frame)
+	frame.Neutral = frame:CreateTexture(nil, "OVERLAY")
+	frame.Neutral:Hide()
+
+	local nativeSetOrientation = frame.SetOrientation
+	frame.SetOrientation = function(self, orientation)
+		self.Orientation = orientation == "VERTICAL" and "VERTICAL" or "HORIZONTAL"
+		nativeSetOrientation(self, self.Orientation)
+	end
+
+	local nativeSetStatusBarTexture = frame.SetStatusBarTexture
+	frame.SetStatusBarTexture = function(self, texture)
+		local success = nativeSetStatusBarTexture(self, texture or RETAIL_STATUSBAR_TEXTURE)
+		if success == false then
+			nativeSetStatusBarTexture(self, RETAIL_STATUSBAR_TEXTURE)
+		end
+		self.Bar = self:GetStatusBarTexture()
+	end
+
+	frame.SetNeutralZone = SetRetailNeutralZone
+	frame.SetStatusBarGradient = SetRetailStatusBarGradient
+	frame.SetAllColors = SetRetailAllColors
+	frame.SetTexCoord = SetRetailTexCoord
+	frame.SetBackdropTexCoord = SetRetailBackdropTexCoord
+	frame.SetBackdropTexture = SetRetailBackdropTexture
+
+	return frame
+end
 
 local function UpdateBar(self)
+	if IS_RETAIL then
+		if self.Neutral then self.Neutral:Hide() end
+		return
+	end
+
 	range = self.MaxVal - self.MinVal 
 	value = self.Value - self.MinVal
 	
@@ -11,7 +100,7 @@ local function UpdateBar(self)
 
 	local neutralSize = (self.NeutralMax - self.NeutralMin) / self.MaxVal
 	local neutralLeft = barsize * ((self.NeutralMin) / self.MaxVal)
-	local neutralRight = barsize * ((self.MaxVal -  self.NeutralMax) / self.MaxVal)
+	local neutralRight = barsize * ((self.MaxVal - self.NeutralMax) / self.MaxVal)
 	
 	if range > 0 and value > 0 and range >= value then
 		fraction = value / range
@@ -49,20 +138,55 @@ local function UpdateSize(self)
 end
 
 local function SetValue(self, value) 
+	if IS_RETAIL then
+		if self._NativeSetValue then
+			self:_NativeSetValue(value)
+		end
+		return
+	end
+
 	if value >= self.MinVal and value <= self.MaxVal then self.Value = value end; 
 	UpdateBar(self) 
 end
 	
 local function SetStatusBarTexture(self, texture)
+	if IS_RETAIL then
+		if self.Fill then
+			local success = self.Fill:SetTexture(texture or RETAIL_STATUSBAR_TEXTURE)
+			if success == false then
+				self.Fill:SetColorTexture(1, 1, 1, 1)
+			end
+		end
+		return
+	end
+
 	self.Bar:SetTexture(texture)
 	self.Neutral:SetTexture(texture)
 end
 local function SetStatusBarColor(self, r, g, b, a)
 	a = a or 1
+	if IS_RETAIL then
+		if self._NativeSetStatusBarColor then
+			self:_NativeSetStatusBarColor(r, g, b, a)
+		end
+		return
+	end
+
 	self.Bar:SetVertexColor(r,g,b,a)
 	self.Neutral:SetVertexColor(0,0,1,a/2)
 end
-local function SetStatusBarGradient(self, r1, g1, b1, a1, r2, g2, b2, a2) self.Bar:SetGradientAlpha(self.Orientation, r1, g1, b1, a1, r2, g2, b2, a2) end
+local function SetStatusBarGradient(self, r1, g1, b1, a1, r2, g2, b2, a2)
+	if IS_RETAIL then
+		if self.Fill and self.Fill.SetGradientAlpha then
+			self.Fill:SetGradientAlpha(self.Orientation, r1, g1, b1, a1, r2, g2, b2, a2)
+		elseif self._NativeSetStatusBarColor then
+			self:_NativeSetStatusBarColor(r1, g1, b1, a1)
+		end
+		return
+	end
+
+	self.Bar:SetGradientAlpha(self.Orientation, r1, g1, b1, a1, r2, g2, b2, a2)
+end
 
 --[[
 local function SetStatusBarGradientAuto(self, r, g, b, a) 
@@ -75,6 +199,19 @@ end
 --]]
 
 local function SetAllColors(self, rBar, gBar, bBar, aBar, rBackdrop, gBackdrop, bBackdrop, aBackdrop) 
+	if IS_RETAIL then
+		if self._NativeSetStatusBarColor then
+			self:_NativeSetStatusBarColor(rBar or 1, gBar or 1, bBar or 1, aBar or 1)
+		end
+		if self.Neutral then
+			self.Neutral:SetVertexColor(rBar or 1, gBar or 1, bBar or 1, aBar or 1)
+			self.Neutral.color = {r = rBar or 1, g = gBar or 1, b = bBar or 1, a = aBar or 1}
+		end
+		self.Backdrop:SetVertexColor(rBackdrop or 1, gBackdrop or 1, bBackdrop or 1, aBackdrop or 1)
+		self.Backdrop.color = {r = rBackdrop or 1, g = gBackdrop or 1, b = bBackdrop or 1, a = aBackdrop or 1}
+		return
+	end
+
 	self.Bar:SetVertexColor(rBar or 1, gBar or 1, bBar or 1, aBar or 1)
 	self.Bar.color = {r = rBar or 1, g = gBar or 1, b = bBar or 1, a = aBar or 1}
 	self.Neutral:SetVertexColor(rBar or 1, gBar or 1, bBar or 1, aBar or 1)
@@ -84,6 +221,15 @@ local function SetAllColors(self, rBar, gBar, bBar, aBar, rBackdrop, gBackdrop, 
 end
 
 local function SetOrientation(self, orientation) 
+	if IS_RETAIL then
+		self.Orientation = orientation == "VERTICAL" and "VERTICAL" or "HORIZONTAL"
+		if self._NativeSetOrientation then
+			self:_NativeSetOrientation(self.Orientation)
+		end
+		UpdateSize(self)
+		return
+	end
+
 	if orientation == "VERTICAL" then
 		self.Orientation = orientation
 		self.Bar:ClearAllPoints()
@@ -105,13 +251,24 @@ local function SetOrientation(self, orientation)
 end
 
 local function GetMinMaxValues(self)
+	if IS_RETAIL and self._NativeGetMinMaxValues then
+		return self.MinVal, self.MaxVal
+	end
+
 	return self.MinVal, self.MaxVal
 end
 
 
 local function SetMinMaxValues(self, minval, maxval)
 	if not (minval or maxval) then return end
-	
+
+	if IS_RETAIL then
+		if self._NativeSetMinMaxValues then
+			self:_NativeSetMinMaxValues(minval, maxval)
+		end
+		return
+	end
+
 	if maxval > minval then
 		self.MinVal = minval
 		self.MaxVal = maxval
@@ -119,15 +276,23 @@ local function SetMinMaxValues(self, minval, maxval)
 		self.MinVal = 0
 		self.MaxVal = 1
 	end
-	
+
 	if self.Value > self.MaxVal then self.Value = self.MaxVal
 	elseif self.Value < self.MinVal then self.Value = self.MinVal end
-	
+
 	UpdateBar(self) 
 end
 
 local function SetNeutralZone(self, minval, maxval, center, barmax)
 	if not (minval or maxval) then return end
+
+	if IS_RETAIL then
+		self.NeutralMin = minval
+		self.NeutralMax = maxval
+		self.NeutralCenter = center
+		if self.Neutral then self.Neutral:Hide() end
+		return
+	end
 
 	if maxval > minval then
 		self.NeutralMin = minval
@@ -144,6 +309,9 @@ end
 
 local function SetTexCoord(self, left,right,top,bottom)		-- 0. 1. 0. 1
 	self.Left, self.Right, self.Top, self.Bottom = left or 0, right or 1, top or 0, bottom or 1
+	if IS_RETAIL and self.Fill then
+		self.Fill:SetTexCoord(self.Left, self.Right, self.Top, self.Bottom)
+	end
 	UpdateBar(self) 
 end
 
@@ -157,7 +325,12 @@ end
 
 
 function CreateNeatPlatesStatusbar(parent)
-	local frame = CreateFrame("Frame", nil, parent, NeatPlatesBackdrop)
+	if IS_RETAIL then
+		return CreateRetailStatusbar(parent)
+	end
+
+	local frame
+	frame = CreateFrame("Frame", nil, parent, NeatPlatesBackdrop)
 	--frame.Dim = 1
 	frame:SetHeight(1)
 	frame:SetWidth(1)

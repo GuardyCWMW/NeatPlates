@@ -1,4 +1,4 @@
-## Interface: 110105
+## Interface: 120100
 ## Title: NeatPlates: |cFF3782D1BlizzardPlates
 ## IconTexture: Interface\AddOns\NeatPlates\Media\NeatPlatesIcon.tga
 ## Notes: Blizzard VanillaÂ´s Plates.
@@ -7,4 +7,3 @@
 ## Dependencies: NeatPlates, NeatPlatesHub
 
 NeatPlates_BlizzardPlates.lua
-

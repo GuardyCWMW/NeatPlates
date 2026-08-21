@@ -1,4 +1,4 @@
-## Interface: 110105
+## Interface: 120100
 ## Title: NeatPlates: Grey Theme
 ## IconTexture: Interface\AddOns\NeatPlates\Media\NeatPlatesIcon.tga
 ## Notes: Use apostrophes wisely.

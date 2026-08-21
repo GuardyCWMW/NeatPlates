@@ -1,0 +1,11 @@
+## Interface: 120100
+## Title: NeatPlates Widgets
+## IconTexture: Interface\AddOns\NeatPlates\Media\NeatPlatesIcon.tga
+## Notes: NeatPlates Widgets for Retail
+## Author: guardycmw (original by Luxocracy and friends)
+## Version: v468-ce6
+## Dependencies: NeatPlates
+
+Widgets-Mainline.xml
+
+

@@ -25,6 +25,11 @@ local function DummyFunction() end
 
 local MiniMobScale = .7
 
+local function IsTargetingPlayer(unit)
+	if NEATPLATES_IS_RETAIL then return false end
+	return UnitIsUnit(unit.unitid.."target", "player")
+end
+
 -- By Low Health
 local function ScaleFunctionByLowHealth(unit)
 	if unit.health/unit.healthmax < LocalVars.LowHealthThreshold then return LocalVars.ScaleSpotlight end
@@ -42,7 +47,7 @@ end
 
 -- By Threat (High) DPS Mode
 local function ScaleFunctionByThreatHigh(unit)
-	if InCombatLockdown() and unit.reaction ~= "FRIENDLY" and (unit.isInCombat or UnitIsUnit(unit.unitid.."target", "player")) then
+	if InCombatLockdown() and unit.reaction ~= "FRIENDLY" and (unit.isInCombat or IsTargetingPlayer(unit)) then
 		if unit.type == "NPC" and unit.threatValue > 1 and unit.health > 2 then return LocalVars.ScaleSpotlight end
 	elseif LocalVars.ColorShowPartyAggro and unit.reaction == "FRIENDLY" then
 		if GetFriendlyThreat(unit.unitid) then return LocalVars.ScaleSpotlight end
@@ -51,7 +56,7 @@ end
 
 -- By Threat (Low) Tank Mode
 local function ScaleFunctionByThreatLow(unit)
-	if InCombatLockdown() and unit.reaction ~= "FRIENDLY" and (unit.isInCombat or UnitIsUnit(unit.unitid.."target", "player")) then
+	if InCombatLockdown() and unit.reaction ~= "FRIENDLY" and (unit.isInCombat or IsTargetingPlayer(unit)) then
 		if ShouldSuppressTankHighlight(unit) then return end
 		if IsOffTanked(unit) then return end
 		if unit.type == "NPC" and unit.health > 2 and unit.threatValue < 2 then return LocalVars.ScaleSpotlight end
@@ -166,7 +171,7 @@ local function ScaleDelegate(...)
 	elseif (LocalVars.ScaleMouseoverSpotlight and unit.isMouseover) then scale = LocalVars.ScaleSpotlight
 	elseif LocalVars.ScaleIgnoreNonEliteUnits and (not unit.isElite) then scale = nil
 	elseif LocalVars.ScaleIgnoreNeutralUnits and unit.reaction == "NEUTRAL" then scale = nil
-	elseif LocalVars.ScaleIgnoreInactive and not ( (unit.health < unit.healthmax) or (unit.isInCombat or UnitIsUnit(unit.unitid.."target", "player") or unit.threatValue > 0) or (unit.isCasting == true) ) then scale = nil
+	elseif LocalVars.ScaleIgnoreInactive and not ( (unit.health < unit.healthmax) or (unit.isInCombat or IsTargetingPlayer(unit) or unit.threatValue > 0) or (unit.isCasting == true) ) then scale = nil
 	elseif LocalVars.ScaleCastingSpotlight and unit.reaction == "HOSTILE" and unit.isCasting then scale = LocalVars.ScaleSpotlight
 	--elseif LocalVars.ScaleMiniMobs and unit.isMini then
 	--	scale = MiniMobScale

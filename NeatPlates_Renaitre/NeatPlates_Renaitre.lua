@@ -335,6 +335,7 @@ local function GetArenaIndex(unitname)
 		for i = 1, #arenaUnitIDs do
 			unitid = arenaUnitIDs[i]
 			name = UnitName(unitid)
+			if NEATPLATES_IS_RETAIL and issecretvalue and issecretvalue(name) then name = nil end
 			if name and (name == unitname) then return unitid end
 		end
 	end

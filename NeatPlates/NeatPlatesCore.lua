@@ -5,7 +5,15 @@
 ---------------------------------------------------------------------------------------------------------------------
 local addonName, NeatPlatesInternal = ...
 local L = LibStub("AceLocale-3.0"):GetLocale("NeatPlates")
-local NeatPlatesCore = CreateFrame("Frame", nil, WorldFrame)
+local NeatPlatesCore
+local NeatPlatesEventFrame
+if NEATPLATES_IS_RETAIL then
+	NeatPlatesCore = CreateFrame("Frame")
+	NeatPlatesEventFrame = CreateFrame("Frame", "NeatPlatesEventFrame")
+else
+	NeatPlatesCore = CreateFrame("Frame", nil, WorldFrame)
+	NeatPlatesEventFrame = NeatPlatesCore
+end
 local NeatPlatesTarget
 local GetPetOwner = NeatPlatesUtility.GetPetOwner
 local ParseGUID = NeatPlatesUtility.ParseGUID
@@ -25,6 +33,76 @@ local select, pairs, tostring  = select, pairs, tostring 			    -- Local functio
 local CreateNeatPlatesStatusbar = CreateNeatPlatesStatusbar			    -- Local function copy
 local WorldFrame, UIParent = WorldFrame, UIParent
 local GetNamePlateForUnit = C_NamePlate.GetNamePlateForUnit
+local issecretvalue = issecretvalue
+local function IsSecretValue(value)
+	return NEATPLATES_IS_RETAIL and issecretvalue and issecretvalue(value)
+end
+
+local function ApplyRetailHealthText(fontString, text, value1, value2, value3, value4)
+	if not NEATPLATES_IS_RETAIL or IsSecretValue(text) or not NeatPlatesHubFunctions then return false end
+
+	if text == NeatPlatesHubFunctions.RetailHealthPercentTextMarker then
+		fontString:SetFormattedText(value1, value2)
+		if value3 then
+			fontString:SetTextColor(value3:GetRGBA())
+		else
+			fontString:SetTextColor(1, 1, 1, 1)
+		end
+		return true
+	elseif text == NeatPlatesHubFunctions.RetailHealthAndPercentTextMarker then
+		fontString:SetFormattedText(value1, value2, value3)
+		if value4 then
+			fontString:SetTextColor(value4:GetRGBA())
+		else
+			fontString:SetTextColor(1, 1, 1, 1)
+		end
+		return true
+	end
+
+	return false
+end
+
+local RetailHealthCalculator = NEATPLATES_IS_RETAIL
+	and CreateUnitHealPredictionCalculator
+	and CreateUnitHealPredictionCalculator()
+
+local function GetRetailHealthPercent(unitid)
+	if not NEATPLATES_IS_RETAIL then return end
+
+	local scaleTo100 = CurveConstants and CurveConstants.ScaleTo100
+	if not scaleTo100 then return end
+
+	-- The non-predicted percentage path remains readable to addon Lua in
+	-- restricted Retail combat, unlike the raw UnitHealth values.
+	if UnitHealthPercent then
+		local success, percent = pcall(UnitHealthPercent, unitid, false, scaleTo100)
+		if success and not IsSecretValue(percent) and type(percent) == "number" then
+			return percent
+		end
+	end
+
+	-- Retail 12.1's detailed prediction calculator is the same path used by
+	-- current nameplate addons for health percentages under secret-value rules.
+	if RetailHealthCalculator and UnitGetDetailedHealPrediction then
+		local success, percent = pcall(function()
+			if RetailHealthCalculator.SetToDefaults then
+				RetailHealthCalculator:SetToDefaults()
+			end
+			UnitGetDetailedHealPrediction(unitid, nil, RetailHealthCalculator)
+			if RetailHealthCalculator.SetMaximumHealthMode
+				and Enum and Enum.UnitMaximumHealthMode
+			then
+				RetailHealthCalculator:SetMaximumHealthMode(Enum.UnitMaximumHealthMode.Default)
+			end
+			return RetailHealthCalculator:EvaluateCurrentHealthPercent(scaleTo100)
+		end)
+
+		if success and not IsSecretValue(percent) and type(percent) == "number" then
+			return percent
+		end
+	end
+end
+
 local function HasNamePlateFunction(name)
 	return C_NamePlate and type(C_NamePlate[name]) == "function"
 end
@@ -360,7 +438,7 @@ local UpdateIndicator_CustomScaleText, UpdateIndicator_Standard, UpdateIndicator
 local UpdateIndicator_Level, UpdateIndicator_ThreatGlow, UpdateIndicator_RaidIcon
 local UpdateIndicator_EliteIcon, UpdateIndicator_UnitColor, UpdateIndicator_Name
 local UpdateIndicator_HealthBar, UpdateIndicator_Highlight, UpdateIndicator_ExtraBar, UpdateIndicator_PowerBar
-local OnUpdateCasting, OnStartCasting, OnStopCasting, OnUpdateCastMidway, OnInterruptedCast
+local OnUpdateCasting, OnStartCasting, OnStopCasting, OnUpdateCastMidway, OnUpdateCastInterruptibility, OnInterruptedCast
 
 -- Event Functions
 local OnShowNameplate, OnHideNameplate, OnUpdateNameplate, OnResetNameplate
@@ -506,6 +584,12 @@ do
 
 		local widgetSetID = UnitWidgetSet(unitid);
 		if widgetSetID then
+			-- Retail widget payloads may contain secret values. Keep Blizzard's
+			-- protected widget plate intact instead of rebuilding it in Lua.
+			if NEATPLATES_IS_RETAIL then
+				return true
+			end
+
 			local widgetSet = C_UIWidgetManager.GetAllWidgetsBySetID(widgetSetID)
 			if not widgetSet or not widgetSet[1] then
 				return false
@@ -630,7 +714,11 @@ do
 		local carrier
 		local frameName = "NeatPlatesCarrier"..numChildren
 
-		carrier = CreateFrame("Frame", frameName, WorldFrame)
+		if NEATPLATES_IS_RETAIL then
+			carrier = CreateFrame("Frame", frameName)
+		else
+			carrier = CreateFrame("Frame", frameName, WorldFrame)
+		end
 		local extended = CreateFrame("Frame", nil, carrier)
 
 		plate.carrier = carrier
@@ -770,7 +858,9 @@ local function NameplateEventHandler(self, event, ...)
 	elseif event == "UNIT_NAME_UPDATE" then
 		SetUpdateMe(self)
 	elseif event == "UNIT_TARGET" then
-		OnUpdateCastTarget(self, unitid)
+		if not NEATPLATES_IS_RETAIL then
+			OnUpdateCastTarget(self, unitid)
+		end
 	elseif event == "UNIT_LEVEL"
 		or event == "UNIT_FACTION"
 		or event == "UNIT_THREAT_SITUATION_UPDATE"
@@ -806,42 +896,72 @@ local function NameplateEventHandler(self, event, ...)
 	then
 		if not ShowCastBars then return end
 		if not self.extended.unit.interrupted then OnInterruptedCast(self) end
+	elseif event == "UNIT_SPELLCAST_INTERRUPTIBLE" then
+		if not ShowCastBars then return end
+		if NEATPLATES_IS_RETAIL then
+			OnUpdateCastInterruptibility(self, false)
+		else
+			OnUpdateCastMidway(self, unitid)
+		end
+	elseif event == "UNIT_SPELLCAST_NOT_INTERRUPTIBLE" then
+		if not ShowCastBars then return end
+		if NEATPLATES_IS_RETAIL then
+			OnUpdateCastInterruptibility(self, true)
+		else
+			OnUpdateCastMidway(self, unitid)
+		end
 	elseif event == "UNIT_SPELLCAST_DELAYED"
 		or event == "UNIT_SPELLCAST_CHANNEL_UPDATE"
-		or event == "UNIT_SPELLCAST_INTERRUPTIBLE"
-		or event == "UNIT_SPELLCAST_NOT_INTERRUPTIBLE"
 	then
 		if not ShowCastBars then return end
 		OnUpdateCastMidway(self, unitid)
 	end
 end
 
+local function RetailNameplateEventHandler(self, event, ...)
+	if self.nameplate then
+		NameplateEventHandler(self.nameplate, event, ...)
+	end
+end
+
 -- Register events to be handled on the nameplate
 local function RegisterNameplateEvents(plate, unitid)
-	plate:SetScript("OnEvent", NameplateEventHandler);
+	local eventFrame = plate
+	if NEATPLATES_IS_RETAIL then
+		eventFrame = plate.extended.eventFrame
+		if not eventFrame then
+			eventFrame = CreateFrame("Frame")
+			eventFrame.nameplate = plate
+			eventFrame:SetScript("OnEvent", RetailNameplateEventHandler)
+			plate.extended.eventFrame = eventFrame
+		end
+		eventFrame:UnregisterAllEvents()
+	else
+		plate:SetScript("OnEvent", NameplateEventHandler)
+	end
 
 	-- Register Events
-	plate:RegisterUnitEvent("UNIT_MAXHEALTH", unitid)
-	plate:RegisterUnitEvent("UNIT_POWER_UPDATE", unitid)
-	plate:RegisterUnitEvent("UNIT_NAME_UPDATE", unitid)
-	plate:RegisterUnitEvent("UNIT_TARGET", unitid)
-	plate:RegisterUnitEvent("UNIT_LEVEL", unitid)
-	plate:RegisterUnitEvent("UNIT_FACTION", unitid)
-	plate:RegisterUnitEvent("UNIT_THREAT_SITUATION_UPDATE", unitid)
-	plate:RegisterUnitEvent("UNIT_SPELLCAST_START", unitid)
-	plate:RegisterUnitEvent("UNIT_SPELLCAST_STOP", unitid)
-	plate:RegisterUnitEvent("UNIT_SPELLCAST_CHANNEL_START", unitid)
-	plate:RegisterUnitEvent("UNIT_SPELLCAST_CHANNEL_STOP", unitid)
-	plate:RegisterUnitEvent("UNIT_SPELLCAST_INTERRUPTED", unitid)
-	-- plate:RegisterUnitEvent("UNIT_SPELLCAST_FAILED", unitid)
-	plate:RegisterUnitEvent("UNIT_SPELLCAST_DELAYED", unitid)
-	plate:RegisterUnitEvent("UNIT_SPELLCAST_CHANNEL_UPDATE", unitid)
+	eventFrame:RegisterUnitEvent("UNIT_MAXHEALTH", unitid)
+	eventFrame:RegisterUnitEvent("UNIT_POWER_UPDATE", unitid)
+	eventFrame:RegisterUnitEvent("UNIT_NAME_UPDATE", unitid)
+	eventFrame:RegisterUnitEvent("UNIT_TARGET", unitid)
+	eventFrame:RegisterUnitEvent("UNIT_LEVEL", unitid)
+	eventFrame:RegisterUnitEvent("UNIT_FACTION", unitid)
+	eventFrame:RegisterUnitEvent("UNIT_THREAT_SITUATION_UPDATE", unitid)
+	eventFrame:RegisterUnitEvent("UNIT_SPELLCAST_START", unitid)
+	eventFrame:RegisterUnitEvent("UNIT_SPELLCAST_STOP", unitid)
+	eventFrame:RegisterUnitEvent("UNIT_SPELLCAST_CHANNEL_START", unitid)
+	eventFrame:RegisterUnitEvent("UNIT_SPELLCAST_CHANNEL_STOP", unitid)
+	eventFrame:RegisterUnitEvent("UNIT_SPELLCAST_INTERRUPTED", unitid)
+	-- eventFrame:RegisterUnitEvent("UNIT_SPELLCAST_FAILED", unitid)
+	eventFrame:RegisterUnitEvent("UNIT_SPELLCAST_DELAYED", unitid)
+	eventFrame:RegisterUnitEvent("UNIT_SPELLCAST_CHANNEL_UPDATE", unitid)
 
-	plate:RegisterUnitEvent("UNIT_HEALTH", unitid)
-	plate:RegisterUnitEvent("UNIT_SPELLCAST_INTERRUPTIBLE", unitid)
-	plate:RegisterUnitEvent("UNIT_SPELLCAST_NOT_INTERRUPTIBLE", unitid)
+	eventFrame:RegisterUnitEvent("UNIT_HEALTH", unitid)
+	eventFrame:RegisterUnitEvent("UNIT_SPELLCAST_INTERRUPTIBLE", unitid)
+	eventFrame:RegisterUnitEvent("UNIT_SPELLCAST_NOT_INTERRUPTIBLE", unitid)
 	if NEATPLATES_IS_CLASSIC then
-		plate:RegisterUnitEvent("UNIT_HEALTH_FREQUENT", unitid) -- Why is this a thing again in the classic client???
+		eventFrame:RegisterUnitEvent("UNIT_HEALTH_FREQUENT", unitid) -- Why is this a thing again in the classic client???
 	end
 end
 
@@ -895,7 +1015,7 @@ do
 				UpdateIndicator_HealthBar()
 				UpdateIndicator_PowerBar()
 				UpdateIndicator_Highlight()
-				if not NEATPLATES_IS_CLASSIC then
+				if not NEATPLATES_IS_CLASSIC and not NEATPLATES_IS_RETAIL then
 					UpdateIndicator_ExtraBar()
 				end
 			end
@@ -932,6 +1052,7 @@ do
 	-- OnShowNameplate
 	function OnShowNameplate(plate, unitid)
 		local unitGUID = UnitGUID(unitid)
+		if IsSecretValue(unitGUID) then unitGUID = nil end
 		-- or unitid = plate.namePlateUnitToken
 		UpdateReferences(plate)
 
@@ -990,12 +1111,16 @@ do
 	-- OnHideNameplate
 	function OnHideNameplate(plate, unitid)
 		local unitGUID = UnitGUID(unitid)
+		if IsSecretValue(unitGUID) then unitGUID = nil end
 		--plate.extended:Hide()
 		plate.carrier:Hide()
 
 		UpdateReferences(plate)
 
 		extended.Active = false
+		if NEATPLATES_IS_RETAIL and extended.eventFrame then
+			extended.eventFrame:UnregisterAllEvents()
+		end
 
 		PlatesVisible[plate] = nil
 		PlatesByUnit[unitid] = nil
@@ -1133,15 +1258,35 @@ do
 	--------------------------------------------------------
 	function UpdateUnitIdentity(plate, unitid)
 		unit.unitid = unitid
-		unit.name, unit.realm = UnitName(unitid)
-		unit.pvpname = UnitPVPName(unitid)
+		local unitName, unitRealm = UnitName(unitid)
+		if IsSecretValue(unitName) then
+			extended.retailUnitName = unitName
+			extended.retailUnitNameIsSecret = true
+			unit.name, unit.realm = "", nil
+		else
+			extended.retailUnitName = nil
+			extended.retailUnitNameIsSecret = false
+			unit.name, unit.realm = unitName or "", unitRealm
+		end
+
+		local pvpName = UnitPVPName(unitid)
+		if IsSecretValue(pvpName) then
+			unit.pvpname = nil
+		else
+			unit.pvpname = pvpName
+		end
 		unit.rawName = unit.name  -- gsub(unit.name, " %(%*%)", "")
 
-		unit.showName = not NeatPlatesOptions.BlizzardNameVisibility or UnitShouldDisplayName(unit.unitid)
+		local shouldDisplayName = UnitShouldDisplayName(unit.unitid)
+		if IsSecretValue(shouldDisplayName) then shouldDisplayName = true end
+		unit.showName = not NeatPlatesOptions.BlizzardNameVisibility or shouldDisplayName
 
 		local classification = UnitClassification(unitid)
+		if IsSecretValue(classification) then classification = "normal" end
+		local effectiveLevel = UnitEffectiveLevel(unitid)
+		if IsSecretValue(effectiveLevel) then effectiveLevel = 0 end
 
-		unit.isBoss = UnitEffectiveLevel(unitid) == -1
+		unit.isBoss = effectiveLevel == -1
 		unit.isDangerous = unit.isBoss
 
 		unit.isElite = EliteReference[classification]
@@ -1149,12 +1294,24 @@ do
 		unit.isMini = classification == "minus"
 		--unit.isPet = UnitIsOtherPlayersPet(unitid)
 		--unit.isPet = ("Pet" == strsplit("-", UnitGUID(unitid)))
-		unit.isPet = ParseGUID(UnitGUID(unitid)) == "Pet" or UnitIsOtherPlayersPet(unitid)
+		local guid = UnitGUID(unitid)
+		if IsSecretValue(guid) then guid = nil end
+		local isOtherPlayersPet = UnitIsOtherPlayersPet(unitid)
+		if IsSecretValue(isOtherPlayersPet) then isOtherPlayersPet = false end
+		unit.isPet = (guid and ParseGUID(guid) == "Pet") or isOtherPlayersPet
 
-		if UnitIsPlayer(unitid) then
-			_, unit.class = UnitClass(unitid)
+		local isPlayer = UnitIsPlayer(unitid)
+		if IsSecretValue(isPlayer) then isPlayer = false end
+		if isPlayer then
+			local _, class = UnitClass(unitid)
+			unit.class = IsSecretValue(class) and "" or class
 			unit.type = "PLAYER"
-			unit.isPVPFlagged = UnitIsPVP(unitid)
+			local isPVPFlagged = UnitIsPVP(unitid)
+			if IsSecretValue(isPVPFlagged) then
+				unit.isPVPFlagged = false
+			else
+				unit.isPVPFlagged = isPVPFlagged
+			end
 		else
 			unit.class = ""
 			unit.type = "NPC"
@@ -1172,8 +1329,12 @@ do
 		unit.isMouseover = UnitIsUnit("mouseover", unitid)
 		unit.isTarget = UnitIsUnit("target", unitid)
 		unit.isFocus = UnitIsUnit("focus", unitid)
+		if IsSecretValue(unit.isMouseover) then unit.isMouseover = false end
+		if IsSecretValue(unit.isTarget) then unit.isTarget = false end
+		if IsSecretValue(unit.isFocus) then unit.isFocus = false end
 
-		unit.guid = UnitGUID(unitid)
+		local guid = UnitGUID(unitid)
+		unit.guid = IsSecretValue(guid) and "" or guid
 
 		UpdateUnitCondition(plate, unitid)	-- This updates a bunch of properties
 
@@ -1190,6 +1351,7 @@ do
 
 		unit.unitid = unit.unitid or unitid -- Just make sure it exists
 		unit.level = UnitEffectiveLevel(unitid)
+		if IsSecretValue(unit.level) then unit.level = 0 end
 
 		local c = GetCreatureDifficultyColor(unit.level)
 		unit.levelcolorRed, unit.levelcolorGreen, unit.levelcolorBlue = c.r or 0.5, c.g or 0.5, c.b or 0.5 -- Default to grey if no color is found
@@ -1197,26 +1359,46 @@ do
 		unit.isTrivial = (c.r == 0.5 and c.g == 0.5 and c.b == 0.5)
 
 		unit.red, unit.green, unit.blue = UnitSelectionColor(unitid)
+		if IsSecretValue(unit.red) or IsSecretValue(unit.green) or IsSecretValue(unit.blue) then
+			unit.red, unit.green, unit.blue = 1, 0, 0
+		end
 		unit.reaction = GetReactionByColor(unit.red, unit.green, unit.blue) or "HOSTILE"
 		-- unit.reaction = GetReactionByUnit(unit) or "HOSTILE"
 
-		unit.health = UnitHealth(unitid) or 0
-		unit.healthmax = UnitHealthMax(unitid) or 0
-		if unit.healthmax == 0 then unit.healthmax = 1 end
-
-		local powerType = UnitPowerType(unitid) or 0
-		unit.power = UnitPower(unitid, powerType) or 0
-		unit.powermax = UnitPowerMax(unitid, powerType) or 0
+		local powerType = UnitPowerType(unitid)
+		if powerType == nil or IsSecretValue(powerType) then powerType = 0 end
+		unit.powerType = powerType
+		if NEATPLATES_IS_RETAIL then
+			-- Legacy themes need comparable values. Retail exposes a safe percentage
+			-- for that purpose. Raw values are fetched only at the native text/bar
+			-- handoff and must never enter the legacy unit cache.
+			local healthPercent = GetRetailHealthPercent(unitid)
+			unit.health = healthPercent or unit.health or 100
+			unit.healthmax = 100
+			unit.power, unit.powermax = 0, 0
+		else
+			unit.health = UnitHealth(unitid) or 0
+			unit.healthmax = UnitHealthMax(unitid) or 0
+			if unit.healthmax == 0 then unit.healthmax = 1 end
+			unit.power = UnitPower(unitid, powerType) or 0
+			unit.powermax = UnitPowerMax(unitid, powerType) or 0
+		end
 
 		unit.threatValue = 0
 		if ThreatSoloEnable or UnitInParty("player") or UnitExists("pet") then
-			unit.threatValue = UnitThreatSituation("player", unitid) or 0
+			local threatValue = UnitThreatSituation("player", unitid)
+			if threatValue ~= nil and not IsSecretValue(threatValue) then
+				unit.threatValue = threatValue
+			end
 			unit.threatSituation = ThreatReference[unit.threatValue]
 		end
 		unit.isInCombat = UnitAffectingCombat(unitid)
+		if IsSecretValue(unit.isInCombat) then unit.isInCombat = false end
 		unit.alphaMult = nameplate:GetAlpha()
+		if IsSecretValue(unit.alphaMult) then unit.alphaMult = 1 end
 
 		local raidIconIndex = GetRaidTargetIndex(unitid)
+		if IsSecretValue(raidIconIndex) then raidIconIndex = nil end
 
 		if raidIconIndex then
 			unit.raidIcon = RaidIconList[raidIconIndex]
@@ -1227,6 +1409,7 @@ do
 
 		-- Unfinished....
 		unit.isTapped = UnitIsTapDenied(unitid)
+		if IsSecretValue(unit.isTapped) then unit.isTapped = false end
 		--unit.isInCombat = false
 		--unit.platetype = 2 -- trivial mini mob
 
@@ -1263,37 +1446,57 @@ do
 
 	-- UpdateIndicator_HealthBar: Updates the value on the health bar
 	function UpdateIndicator_HealthBar()
-		visual.healthbar:SetMinMaxValues(0, unit.healthmax)
-		visual.healthbar:SetValue(unit.health)
+		if NEATPLATES_IS_RETAIL then
+			-- Retail 12.x health values can be secret. Native StatusBars accept
+			-- those values directly; addon Lua must not inspect or transform them.
+			visual.healthbar:SetMinMaxValues(0, UnitHealthMax(unit.unitid))
+			visual.healthbar:SetValue(UnitHealth(unit.unitid))
+		else
+			visual.healthbar:SetMinMaxValues(0, unit.healthmax)
+			visual.healthbar:SetValue(unit.health)
+		end
 		-- Subtext
 		UpdateIndicator_Subtext()
 	end
 
 	-- UpdateIndicator_PowerBar: Updates the value on the resource/power bar
 	function UpdateIndicator_PowerBar()
-		visual.powerbar:SetMinMaxValues(0, unit.powermax)
-		visual.powerbar:SetValue(unit.power)
+		if NEATPLATES_IS_RETAIL then
+			local powerType = unit.powerType or 0
+			visual.powerbar:SetMinMaxValues(0, UnitPowerMax(unit.unitid, powerType))
+			visual.powerbar:SetValue(UnitPower(unit.unitid, powerType))
+		else
+			visual.powerbar:SetMinMaxValues(0, unit.powermax)
+			visual.powerbar:SetValue(unit.power)
+		end
 
 		-- Hide bar if max power is none as the unit doesn't use power
 		local showPowerBar = (ShowFriendlyPowerBar and unit.reaction == "FRIENDLY") or (ShowEnemyPowerBar and unit.reaction ~= "FRIENDLY")
-		if unit.powermax == 0 or not showPowerBar then
+		if not showPowerBar or (not NEATPLATES_IS_RETAIL and unit.powermax == 0) then
 			visual.powerbar:Hide()
 		elseif showPowerBar then
 			visual.powerbar:Show()
 		end
 
 		-- Fixes issue with small sliver being displayed even at 0
-		if unit.power == 0 then
-			visual.powerbar.Bar:Hide()
-		else
-			visual.powerbar.Bar:Show()
+		if not NEATPLATES_IS_RETAIL then
+			if unit.power == 0 then
+				visual.powerbar.Bar:Hide()
+			else
+				visual.powerbar.Bar:Show()
+			end
 		end
 	end
 
 
 	-- UpdateIndicator_Name:
 	function UpdateIndicator_Name()
-		local unitname = activetheme.SetUnitName(unit)
+		local unitname
+		if NEATPLATES_IS_RETAIL and extended.retailUnitNameIsSecret then
+			unitname = extended.retailUnitName
+		else
+			unitname = activetheme.SetUnitName(unit)
+		end
 
 		if unit.showName then
 				visual.name:SetText(unitname) -- Set name
@@ -1315,8 +1518,15 @@ do
 		-- Subtext
 		if style.subtext.show and style.subtext.enabled and activetheme.SetSubText then
 				local text, r, g, b, a = activetheme.SetSubText(unit)
-				visual.subtext:SetText(text or "")
-				visual.subtext:SetTextColor(r or 1, g or 1, b or 1, a or 1)
+				local retailHealthTextApplied = ApplyRetailHealthText(visual.subtext, text, r, g, b, a)
+				if not retailHealthTextApplied then
+					if NEATPLATES_IS_RETAIL then
+						visual.subtext:SetText(text)
+					else
+						visual.subtext:SetText(text or "")
+					end
+					visual.subtext:SetTextColor(r or 1, g or 1, b or 1, a or 1)
+				end
 		else visual.subtext:SetText("") end
 	end
 
@@ -1533,8 +1743,15 @@ do
 			if style.customtext.show and style.customtext.enabled then
 				if activetheme.SetCustomText and unit.unitid then
 					local text, r, g, b, a = activetheme.SetCustomText(unit)
-					visual.customtext:SetText( text or "")
-					visual.customtext:SetTextColor(r or 1, g or 1, b or 1, a or 1)
+					local retailHealthTextApplied = ApplyRetailHealthText(visual.customtext, text, r, g, b, a)
+					if not retailHealthTextApplied then
+						if NEATPLATES_IS_RETAIL then
+							visual.customtext:SetText(text)
+						else
+							visual.customtext:SetText(text or "")
+						end
+						visual.customtext:SetTextColor(r or 1, g or 1, b or 1, a or 1)
+					end
 				else visual.customtext:SetText("") end
 			end
 
@@ -1576,7 +1793,33 @@ do
 		local castBar = extended.visual.castbar
 
 
-		if NEATPLATES_IS_CLASSIC_ERA and channeled then
+		if NEATPLATES_IS_RETAIL then
+			if channeled then
+				name, text, texture, startTime, endTime, isTradeSkill, notInterruptible = UnitChannelInfo(unitid)
+			else
+				name, text, texture, startTime, endTime, isTradeSkill, castID, notInterruptible = UnitCastingInfo(unitid)
+			end
+
+			if isTradeSkill then return end
+
+			-- Retail 12.x cast times can be secret. Blizzard's duration object may be
+			-- passed directly to a native StatusBar without exposing the values to Lua.
+			local durationObject
+			if channeled and UnitChannelDuration then
+				durationObject = UnitChannelDuration(unitid)
+			elseif not channeled and UnitCastingDuration then
+				durationObject = UnitCastingDuration(unitid)
+			end
+
+			castBar:SetScript("OnUpdate", nil)
+			if durationObject and castBar.SetTimerDuration then
+				local direction = channeled and Enum.StatusBarTimerDirection.RemainingTime or Enum.StatusBarTimerDirection.ElapsedTime
+				castBar:SetTimerDuration(durationObject, Enum.StatusBarInterpolation.Immediate, direction)
+			else
+				castBar:SetMinMaxValues(0, 1)
+				castBar:SetValue(channeled and 1 or 0)
+			end
+		elseif NEATPLATES_IS_CLASSIC_ERA and channeled then
 			local unitType,_,_,_,_,creatureID = ParseGUID(guid)
 			local spell = SpellCastCache[guid]
 			local spellEntry
@@ -1613,14 +1856,23 @@ do
 		unit.isCasting = true
 		unit.interrupted = false
 		unit.interruptLogged = false
-		unit.spellIsShielded = notInterruptible
-		unit.spellInterruptible = not unit.spellIsShielded
+		if NEATPLATES_IS_RETAIL then
+			-- Retail 12.x can return a secret interruptibility value. The plain
+			-- UNIT_SPELLCAST_* events update this state without inspecting it.
+			unit.spellIsShielded = false
+			unit.spellInterruptible = true
+		else
+			unit.spellIsShielded = notInterruptible
+			unit.spellInterruptible = not unit.spellIsShielded
+		end
 
 		-- Clear registered events incase they weren't
 		castBar:SetScript("OnEvent", nil)
 		--castBar:UnregisterEvent("COMBAT_LOG_EVENT_UNFILTERED");
 
-		OnUpdateCastTarget(plate, unitid)
+		if not NEATPLATES_IS_RETAIL then
+			OnUpdateCastTarget(plate, unitid)
+		end
 
 		-- Set spell text & duration
 		if ShowCastSpellName then
@@ -1630,7 +1882,9 @@ do
 		end
 		visual.durationtext:SetText("")
 		visual.spellicon:SetTexture(texture)
-		castBar:SetMinMaxValues(startTime or 0, endTime or 0)
+		if not NEATPLATES_IS_RETAIL then
+			castBar:SetMinMaxValues(startTime or 0, endTime or 0)
+		end
 
 		local r, g, b, a = 1, 1, 0, 1
 
@@ -1754,7 +2008,11 @@ do
 	function OnUpdateCastMidway(plate, unitid)
 		if not ShowCastBars then return end
 
-		if UnitCastingInfo(unitid) then
+		if NEATPLATES_IS_RETAIL and UnitCastingDuration and UnitCastingDuration(unitid) then
+			OnStartCasting(plate, unitid, false)
+		elseif NEATPLATES_IS_RETAIL and UnitChannelDuration and UnitChannelDuration(unitid) then
+			OnStartCasting(plate, unitid, true)
+		elseif UnitCastingInfo(unitid) then
 			OnStartCasting(plate, unitid, false)	-- Check to see if there's a spell being cast
 		elseif UnitChannelInfo(unitid) then
 			if NEATPLATES_IS_CLASSIC_ERA then return end
@@ -1859,6 +2117,23 @@ do
 		OnHideNameplate(plate, unitid)
 	end
 
+	function OnUpdateCastInterruptibility(plate, notInterruptible)
+		UpdateReferences(plate)
+		unit.spellIsShielded = notInterruptible and true or false
+		unit.spellInterruptible = not unit.spellIsShielded
+
+		if style.castnostop and style.castnostop.enabled and unit.spellIsShielded then
+			visual.castnostop:Show()
+			visual.castborder:Hide()
+		elseif style.castborder and style.castborder.enabled then
+			visual.castnostop:Hide()
+			visual.castborder:Show()
+		else
+			visual.castnostop:Hide()
+			visual.castborder:Hide()
+		end
+	end
+
 	local function UpdateCustomTarget()
 		local unitAlive = UnitIsDead("target") == false
 		local guid = UnitGUID("target")
@@ -1876,7 +2151,9 @@ do
 
 	function CoreEvents:PLAYER_TARGET_CHANGED()
 		HasTarget = UnitExists("target") == true;
-		UpdateCustomTarget()
+		if NEATPLATES_IS_CLASSIC then
+			UpdateCustomTarget()
+		end
 		SetUpdateAll()
 	end
 
@@ -2023,8 +2300,16 @@ do
 
 	-- Registration of Blizzard Events
 	NeatPlatesCore:SetFrameStrata("TOOLTIP") 	-- When parented to WorldFrame, causes OnUpdate handler to run close to last
-	NeatPlatesCore:SetScript("OnEvent", EventHandler)
-	for eventName in pairs(CoreEvents) do NeatPlatesCore:RegisterEvent(eventName) end
+	NeatPlatesEventFrame:SetScript("OnEvent", EventHandler)
+	if NEATPLATES_IS_RETAIL then
+		-- These event streams contain protected/forbidden payloads on Retail
+		-- 12.x. NeatPlates uses the dedicated nameplate/unit APIs instead.
+		CoreEvents.COMBAT_LOG_EVENT_UNFILTERED = nil
+		CoreEvents.UPDATE_UI_WIDGET = nil
+	end
+	for eventName in pairs(CoreEvents) do
+		NeatPlatesEventFrame:RegisterEvent(eventName)
+	end
 	-- NeatPlatesCore:RegisterAllEvents() --Debugging
 
 end
@@ -2357,6 +2642,7 @@ function NeatPlates.GetPlateByUnit(unitid)
 		return PlatesByUnit[unitid]
 	else
 		local guid = UnitGUID(unitid)
+		if IsSecretValue(guid) then return nil end
 		if PlatesByGUID[guid] ~= nil then
 			return PlatesByGUID[guid]
 		end

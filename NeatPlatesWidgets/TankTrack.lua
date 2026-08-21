@@ -3,6 +3,19 @@ NeatPlatesWidgetSettings = {
 	RaidTankList = {}
 }
 
+if NEATPLATES_IS_RETAIL then
+	local function Noop() end
+	NeatPlatesWidgets.EnableTankWatch = Noop
+	NeatPlatesWidgets.DisableTankWatch = Noop
+	NeatPlatesWidgets.EnableAggroWatch = Noop
+	NeatPlatesWidgets.DisableAggroWatch = Noop
+	NeatPlatesWidgets.IsEnemyTanked = function() return false end
+	NeatPlatesWidgets.IsPlayerTank = function()
+		return UnitGroupRolesAssigned("player") == "TANK"
+	end
+	return
+end
+
 local function _IsEquippedItemType(type)
 	local result
 	if C_Item and C_Item.IsEquippedItemType then
@@ -54,7 +67,6 @@ local function GetSpellID(spellname)
 	else
 		id = select(7, GetSpellInfo(spellname))
 	end
-
 	return id
 end
 

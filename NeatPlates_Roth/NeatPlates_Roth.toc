@@ -1,4 +1,4 @@
-## Interface: 110105
+## Interface: 120100
 ## Title: NeatPlates: Roth
 ## IconTexture: Interface\AddOns\NeatPlates\Media\NeatPlatesIcon.tga
 ## Notes: Vanilla-Style Plates.
@@ -6,4 +6,3 @@
 ## Dependencies: NeatPlates, NeatPlatesHub
 
 NeatPlates_Roth.lua
-

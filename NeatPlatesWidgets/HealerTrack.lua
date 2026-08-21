@@ -1,4 +1,12 @@
 
+if not NEATPLATES_IS_CLASSIC then
+	NeatPlatesUtility.EnableHealerTrack = function() end
+	NeatPlatesUtility.DisableHealerTrack = function() end
+	NeatPlatesUtility.IsHealer = function()
+		return false
+	end
+	return
+end
 
 --[[
 	The NeatPlates Healer Tracking system uses two concurrent methods:

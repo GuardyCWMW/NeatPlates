@@ -5,6 +5,8 @@ if not L then return end
 L = L or {}
 L["Nameplate stacking is now controlled in Blizzard's Nameplate settings. Blizzard changed this behavior with Phase 5, so NeatPlates follows the Blizzard setting."] = "Das Stapeln von Namensplaketten wird jetzt in den Blizzard-Einstellungen unter 'Namensplaketten' gesteuert. Blizzard hat dieses Verhalten mit Phase 5 geaendert; NeatPlates folgt dieser Einstellung."
 L["Stacking Nameplates"] = "Stapelnde Namensplaketten"
+L["TRAVELER"] = "Reisender"
+L["ADVENTURER"] = "Abenteurer"
 L["Spacing Offset"] = "Abstand Offset"
 L["Vertical Spacing"] = "Vertikaler Abstand"
 L["Controls Blizzard's vertical nameplate stacking distance. Smaller values keep nameplates closer together; larger values add more space."] = "Steuert Blizzards vertikalen Abstand fuer stapelnde Namensplaketten. Kleinere Werte ruecken sie enger zusammen; groessere Werte schaffen mehr Abstand."

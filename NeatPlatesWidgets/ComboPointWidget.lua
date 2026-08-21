@@ -111,6 +111,7 @@ local playeRole = "DAMAGER"
 local PlayerClass = select(2, UnitClass("player"))
 local playerSpec = 0
 local WidgetList = {}
+local RetailTargetWidget
 
 local function GetDKRunes()
 	local runeAmount = 0;
@@ -287,6 +288,20 @@ end
 
 -- Context
 local function UpdateWidgetContext(frame, unit)
+	if NEATPLATES_IS_RETAIL then
+		if unit.isTarget then
+			if RetailTargetWidget and RetailTargetWidget ~= frame then
+				RetailTargetWidget:_Hide()
+			end
+			RetailTargetWidget = frame
+			UpdateWidgetFrame(frame)
+		else
+			if RetailTargetWidget == frame then RetailTargetWidget = nil end
+			frame:_Hide()
+		end
+		return
+	end
+
 	local guid = unit.guid
 
 	-- Add to Widget List
@@ -305,6 +320,12 @@ local function UpdateWidgetContext(frame, unit)
 end
 
 local function ClearWidgetContext(frame)
+	if NEATPLATES_IS_RETAIL then
+		if RetailTargetWidget == frame then RetailTargetWidget = nil end
+		frame.guid = nil
+		return
+	end
+
 	local guid = frame.guid
 	if guid then
 		WidgetList[guid] = nil
@@ -327,6 +348,16 @@ WatcherFrame:RegisterEvent("UNIT_AURA")
 WatcherFrame:RegisterEvent("UNIT_FLAGS")
 
 local function WatcherFrameHandler(frame, event, unitid)
+		if NEATPLATES_IS_RETAIL then
+			if event == "PLAYER_TARGET_CHANGED" then
+				if RetailTargetWidget then RetailTargetWidget:_Hide() end
+				RetailTargetWidget = nil
+				return
+			end
+			if RetailTargetWidget then UpdateWidgetFrame(RetailTargetWidget) end
+			return
+		end
+
 		local guid = UnitGUID("target")
 		if UnitExists("target") then
 			local widget = WidgetList[guid]

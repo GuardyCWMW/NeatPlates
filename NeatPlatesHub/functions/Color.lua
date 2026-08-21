@@ -40,6 +40,52 @@ local InCombatLockdown = InCombatLockdown
 local StyleDelegate = NeatPlatesHubFunctions.SetStyleNamed
 local AddHubFunction = NeatPlatesHubHelpers.AddHubFunction
 
+local function IsSecretValue(value)
+	return NEATPLATES_IS_RETAIL and issecretvalue and issecretvalue(value)
+end
+
+local function IsUnitTargetingPlayer(unit)
+	if not unit or not unit.unitid then return false end
+
+	local isTargetingPlayer = UnitIsUnit(unit.unitid.."target", "player")
+	if IsSecretValue(isTargetingPlayer) then return false end
+
+	return isTargetingPlayer
+end
+
+local function GetHealthFraction(unit)
+	if not unit or not unit.health or not unit.healthmax or unit.healthmax == 0 then
+		return 1
+	end
+
+	return unit.health / unit.healthmax
+end
+
+local RetailHealthTextColorCurve
+local function BuildRetailHealthTextColorCurve()
+	if not NEATPLATES_IS_RETAIL or not C_CurveUtil or not CreateColor then return end
+
+	local low = LocalVars.ColorLowHealth or HubData.Colors.White
+	local medium = LocalVars.ColorMediumHealth or HubData.Colors.White
+	local high = LocalVars.ColorHighHealth or HubData.Colors.White
+	local curve = C_CurveUtil.CreateColorCurve()
+	curve:SetType(Enum.LuaCurveType.Step)
+	curve:AddPoint(0, CreateColor(low.r, low.g, low.b, .7))
+	curve:AddPoint(LocalVars.LowHealthThreshold or .3, CreateColor(medium.r, medium.g, medium.b, .7))
+	curve:AddPoint(LocalVars.HighHealthThreshold or .7, CreateColor(high.r, high.g, high.b, .7))
+	RetailHealthTextColorCurve = curve
+end
+
+local function GetRetailHealthTextColor(unit)
+	if not NEATPLATES_IS_RETAIL or not unit or not unit.unitid or not UnitHealthPercent then return end
+	if not RetailHealthTextColorCurve then BuildRetailHealthTextColorCurve() end
+	if not RetailHealthTextColorCurve then return end
+
+	return UnitHealthPercent(unit.unitid, true, RetailHealthTextColorCurve)
+end
+
+HubData.Functions.GetRetailHealthTextColor = GetRetailHealthTextColor
+
 ------------------------------------------------------------------------------
 ------------------------------------------------------------------------------
 -- Health Bar Color
@@ -50,7 +96,7 @@ local function DummyFunction() return end
 
 -- By Low Health
 local function ColorFunctionByHealth(unit)
-	local health = unit.health/unit.healthmax
+	local health = GetHealthFraction(unit)
 	if health > LocalVars.HighHealthThreshold then return LocalVars.ColorHighHealth
 	elseif health > LocalVars.LowHealthThreshold then return LocalVars.ColorMediumHealth
 	else return LocalVars.ColorLowHealth end
@@ -149,9 +195,9 @@ local function ColorFunctionByThreat(unit)
 
 	if classColor then
 		return classColor
-	elseif not UnitInParty("player") and not UnitExists("pet") and LocalVars.SafeColorSolo and InCombatLockdown() and unit.reaction ~= "FRIENDLY" and unit.type == "NPC" and (unit.isInCombat or UnitIsUnit(unit.unitid.."target", "player")) then
+	elseif not UnitInParty("player") and not UnitExists("pet") and LocalVars.SafeColorSolo and InCombatLockdown() and unit.reaction ~= "FRIENDLY" and unit.type == "NPC" and (unit.isInCombat or IsUnitTargetingPlayer(unit)) then
 		return LocalVars.ColorThreatSafe
-	elseif (LocalVars.ThreatSoloEnable or UnitInParty("player") or UnitExists("pet")) and InCombatLockdown() and unit.reaction ~= "FRIENDLY" and unit.type == "NPC" and (unit.isInCombat or UnitIsUnit(unit.unitid.."target", "player")) then
+	elseif (LocalVars.ThreatSoloEnable or UnitInParty("player") or UnitExists("pet")) and InCombatLockdown() and unit.reaction ~= "FRIENDLY" and unit.type == "NPC" and (unit.isInCombat or IsUnitTargetingPlayer(unit)) then
 		local isTank = (LocalVars.ThreatWarningMode == "Tank") or (LocalVars.ThreatWarningMode == "Auto" and IsTankingAuraActive())
 		local threatException = ThreatExceptions(unit, isTank)
 
@@ -368,6 +414,7 @@ local WarningColor = {}
 
 -- Player Health (na)
 local function WarningBorderFunctionByPlayerHealth(unit)
+	if NEATPLATES_IS_RETAIL then return end
 	local healthPct = UnitHealth("player")/UnitHealthMax("player")
 	if healthPct < .3 then return HubData.Colors.DarkRed end
 end
@@ -404,7 +451,7 @@ end
 
 -- Warning Glow (Auto Detect)
 local function WarningBorderFunctionByThreat(unit)
-	if (LocalVars.ThreatSoloEnable or UnitInParty("player") or UnitExists("pet")) and InCombatLockdown() and unit.reaction ~= "FRIENDLY" and unit.type == "NPC" and (unit.isInCombat or UnitIsUnit(unit.unitid.."target", "player")) then
+	if (LocalVars.ThreatSoloEnable or UnitInParty("player") or UnitExists("pet")) and InCombatLockdown() and unit.reaction ~= "FRIENDLY" and unit.type == "NPC" and (unit.isInCombat or IsUnitTargetingPlayer(unit)) then
 		local isTank = (LocalVars.ThreatWarningMode == "Tank") or (LocalVars.ThreatWarningMode == "Auto" and IsTankingAuraActive())
 		local threatException = ThreatExceptions(unit, isTank, true)
 
@@ -420,7 +467,7 @@ local function WarningBorderFunctionByThreat(unit)
 
 		if isTank then
 				if ShouldSuppressTankHighlight(unit) then return end
-				if (not unit.isInCombat and not UnitIsUnit(unit.unitid.."target", "player")) or IsOffTanked(unit) then return
+				if (not unit.isInCombat and not IsUnitTargetingPlayer(unit)) or IsOffTanked(unit) then return
 				elseif unit.threatValue == 2 then return LocalVars.ColorThreatTransition
 				elseif unit.threatValue < 2 then return LocalVars.ColorThreatWarning	end
 		elseif unit.threatValue > 0 then return ColorFunctionDamage(unit, true) end
@@ -561,7 +608,7 @@ end
 
 local function NameColorByThreat(unit)
 	if unit.reaction == "NEUTRAL" and unit.threatValue < 2 then return NameReactionColors[unit.reaction][unit.type]
-	elseif InCombatLockdown() and (unit.isInCombat or UnitIsUnit(unit.unitid.."target", "player")) then return ColorFunctionByThreat(unit)
+	elseif InCombatLockdown() and (unit.isInCombat or IsUnitTargetingPlayer(unit)) then return ColorFunctionByThreat(unit)
 	else return NEATPLATES_CLASS_COLORS[unit.class or ""] or NameReactionColors[unit.reaction][unit.type] end
 end
 
@@ -658,6 +705,7 @@ end
 
 local function OnVariableChange(vars)
 	LocalVars = vars
+	RetailHealthTextColorCurve = nil
 	if (EnemyBarFunctions[LocalVars.EnemyBarColorMode] == ColorFunctionByThreat) or LocalVars.ThreatGlowEnable then
 		SetCVar("threatWarning", 3)
 	end

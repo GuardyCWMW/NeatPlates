@@ -18,12 +18,25 @@ local GetFriendlyClass = HubData.Functions.GetFriendlyClass
 local GetEnemyClass = HubData.Functions.GetEnemyClass
 local StyleDelegate = NeatPlatesHubFunctions.SetStyleNamed
 local ColorFunctionByHealth = HubData.Functions.ColorFunctionByHealth
+local GetRetailHealthTextColor = HubData.Functions.GetRetailHealthTextColor
 local CachedUnitDescription = NeatPlatesUtility.CachedUnitDescription
 
 local GetUnitSubtitle = NeatPlatesUtility.GetUnitSubtitle
 local GetUnitQuestInfo = NeatPlatesUtility.GetUnitQuestInfo
 local GetArenaIndex = NeatPlatesUtility.GetArenaIndex
 local round = NeatPlatesUtility.round
+local issecretvalue = issecretvalue
+local RetailAbbreviateNumbers = AbbreviateNumbersAlt or AbbreviateNumbers
+local RetailBreakUpLargeNumbers = BreakUpLargeNumbers
+
+local function IsSecretValue(value)
+	return NEATPLATES_IS_RETAIL and issecretvalue and issecretvalue(value)
+end
+
+local RetailHealthPercentTextMarker = {}
+local RetailHealthAndPercentTextMarker = {}
+NeatPlatesHubFunctions.RetailHealthPercentTextMarker = RetailHealthPercentTextMarker
+NeatPlatesHubFunctions.RetailHealthAndPercentTextMarker = RetailHealthAndPercentTextMarker
 
 
 local AddHubFunction = NeatPlatesHubHelpers.AddHubFunction
@@ -69,6 +82,9 @@ end
 
 
 local function ShortenNumber(number)
+	if IsSecretValue(number) then
+		return RetailAbbreviateNumbers and RetailAbbreviateNumbers(number) or ""
+	end
 	if not number then return "" end
 
 	if LocalVars.AltShortening and number > 100000000 then
@@ -85,6 +101,12 @@ local function ShortenNumber(number)
 end
 
 local function SepThousands(number)
+	if IsSecretValue(number) then
+		-- Blizzard's C formatter accepts secret numbers and returns displayable,
+		-- locale-aware text without exposing the numeric value to Lua.
+		if RetailBreakUpLargeNumbers then return RetailBreakUpLargeNumbers(number) end
+		return RetailAbbreviateNumbers and RetailAbbreviateNumbers(number) or ""
+	end
 	if not number then return "" end
 	local n = tonumber(number)
 
@@ -94,6 +116,7 @@ end
 
 
 local function TextFunctionMana(unit)
+	if NEATPLATES_IS_RETAIL then return end
 	if (unit.isTarget or (LocalVars.FocusAsTarget and unit.isFocus)) then
 		local power = ceil((UnitPower("target") / UnitPowerMax("target"))*100)
 		--local r, g, b = UnitPowerType("target")
@@ -108,15 +131,49 @@ local function TextFunctionMana(unit)
 end
 
 local function GetHealth(unit)
-	--if unit.healthmaxCached then
-		return unit.health
-	--else return nil end
+	if NEATPLATES_IS_RETAIL then return UnitHealth(unit.unitid) end
+	return unit.health
 end
 
 local function GetHealthMax(unit)
-	--if unit.healthmaxCached then
-		return unit.healthmax
-	--else return nil end
+	if NEATPLATES_IS_RETAIL then return UnitHealthMax(unit.unitid) end
+	return unit.healthmax
+end
+
+local function GetRetailHealthPercent(unit)
+	return UnitHealthPercent(unit.unitid, true, CurveConstants.ScaleTo100)
+end
+
+local function GetRetailHealthPercentFormat()
+	local precision = tonumber(LocalVars.TextHealthPercentPrecision) or 0
+	return "%."..precision.."f%%"
+end
+
+local function GetRetailHealthAndPercentFormat()
+	local precision = tonumber(LocalVars.TextHealthPercentPrecision) or 0
+	return "%s  (%."..precision.."f%%)"
+end
+
+local function RetailHealthPercentText(unit, colored)
+	local color
+	if colored and GetRetailHealthTextColor then
+		color = GetRetailHealthTextColor(unit)
+	end
+	return RetailHealthPercentTextMarker, GetRetailHealthPercentFormat(), GetRetailHealthPercent(unit), color
+end
+
+local function RetailHealthAndPercentText(unit, exact)
+	local health
+	if exact then
+		health = SepThousands(GetHealth(unit))
+	else
+		health = ShortenNumber(GetHealth(unit))
+	end
+	local color
+	if GetRetailHealthTextColor then
+		color = GetRetailHealthTextColor(unit)
+	end
+	return RetailHealthAndPercentTextMarker, GetRetailHealthAndPercentFormat(), health, GetRetailHealthPercent(unit), color
 end
 
 -- None
@@ -134,21 +191,25 @@ local function GetHealthPercent(unit)
 end
 -- Percent
 local function TextHealthPercent(unit)
+	if NEATPLATES_IS_RETAIL then return RetailHealthPercentText(unit, false) end
 	return GetHealthPercent(unit).."%"
 end
 
 local function TextHealthPercentColored(unit)
+	if NEATPLATES_IS_RETAIL then return RetailHealthPercentText(unit, true) end
 	local color = ColorFunctionByHealth(unit)
 	return GetHealthPercent(unit).."%", color.r, color.g, color.b, .7
 end
 
 local function HealthFunctionPercent(unit)
+	if NEATPLATES_IS_RETAIL then return TextHealthPercent(unit) end
 	if unit.health < unit.healthmax then
 		return TextHealthPercent(unit)
 	else return "" end
 end
 
 local function HealthFunctionPercentColored(unit)
+	if NEATPLATES_IS_RETAIL then return TextHealthPercentColored(unit) end
 	if unit.health < unit.healthmax then
 		return TextHealthPercentColored(unit)
 	else return "" end
@@ -164,16 +225,27 @@ local function HealthFunctionApprox(unit)
 end
 -- Approximate
 local function HealthFunctionApproxAndPercent(unit)
+	if NEATPLATES_IS_RETAIL then return RetailHealthAndPercentText(unit, false) end
 	local color = ColorFunctionByHealth(unit)
 	return HealthFunctionApprox(unit).."  ("..GetHealthPercent(unit).."%)", color.r, color.g, color.b, .7
 end
 --Deficit
 local function HealthFunctionDeficit(unit)
+	if NEATPLATES_IS_RETAIL and UnitHealthMissing then
+		local missing = UnitHealthMissing(unit.unitid)
+		if IsSecretValue(missing) then
+			local text = RetailAbbreviateNumbers and RetailAbbreviateNumbers(missing)
+			return text and ("-"..text) or ""
+		end
+		if missing and missing > 0 then return "-"..SepThousands(missing) end
+		return ""
+	end
 	local health, healthmax = GetHealth(unit), GetHealthMax(unit)
 	if health and healthmax and (health ~= healthmax) then return "-"..SepThousands(healthmax - health) end
 end
 -- Total and Percent
 local function HealthFunctionTotal(unit)
+	if NEATPLATES_IS_RETAIL then return RetailHealthAndPercentText(unit, false) end
 	local color = ColorFunctionByHealth(unit)
 	--local color = HubData.Colors.White
 	local health, healthmax = GetHealth(unit), GetHealthMax(unit)
@@ -181,6 +253,7 @@ local function HealthFunctionTotal(unit)
 end
 -- Exact Health and Percent
 local function HealthFunctionExactTotal(unit)
+	if NEATPLATES_IS_RETAIL then return RetailHealthAndPercentText(unit, true) end
 	local color = ColorFunctionByHealth(unit)
 	--local color = HubData.Colors.White
 	local health, healthmax = GetHealth(unit), GetHealthMax(unit)
@@ -201,6 +274,11 @@ end
 local function HealthFunctionTargetOfClass(unit)
 	if unit.isInCombat then
 		local targetof = unit.unitid.."target"
+		if NEATPLATES_IS_RETAIL then
+			-- Retail may return a secret unit name. FontString:SetText can consume
+			-- it directly, while class-color concatenation in Lua cannot.
+			return UnitName(targetof)
+		end
 		local name = UnitName(targetof) or ""
 
 		if UnitIsPlayer(targetof) then
@@ -281,7 +359,7 @@ local function HealthFunctionArenaID(unit)
 		end
 
 
-		if localid then
+		if localid and not NEATPLATES_IS_RETAIL then
 			local power = ceil((UnitPower(localid) / UnitPowerMax(localid))*100)
 			local powerindex, powertype = UnitPowerType(localid)
 
@@ -621,6 +699,9 @@ local function SubTextDelegate(unit)
 
 	local text, r, g, b, a = func(unit)
 	local c = {}
+	if not IsSecretValue(text) and (text == RetailHealthPercentTextMarker or text == RetailHealthAndPercentTextMarker) then
+		return text, r, g, b, a
+	end
 
 	-- Override the color from the function with the color chosen by the user
 	if unit.reaction == "FRIENDLY" and (LocalVars.FriendlySubtextColor["a"] > 0 and text and text ~= "") then

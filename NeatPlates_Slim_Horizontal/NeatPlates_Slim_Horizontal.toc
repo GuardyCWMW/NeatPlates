@@ -1,4 +1,4 @@
-## Interface: 110105
+## Interface: 120100
 ## Title: NeatPlates: Slim Horizontal
 ## IconTexture: Interface\AddOns\NeatPlates\Media\NeatPlatesIcon.tga
 ## Author: Dotfix

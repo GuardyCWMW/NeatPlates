@@ -1,4 +1,4 @@
-## Interface: 110105
+## Interface: 120100
 ## Title: NeatPlates: Neon Theme
 ## IconTexture: Interface\AddOns\NeatPlates\Media\NeatPlatesIcon.tga
 ## Notes: It toasts your Eggo waffles, and butters your bread.
@@ -6,5 +6,3 @@
 ## Dependencies: NeatPlates, NeatPlatesHub
 
 Neon.lua
-
-

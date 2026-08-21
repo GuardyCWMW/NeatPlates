@@ -654,8 +654,15 @@ local function OnInitializeWidgets(extended, configTable)
 	local EnableThreatPercentageWidget = LocalVars.WidgetThreatPercentage
 	local EnableRangeWidget = LocalVars.WidgetRangeIndicator
 
-	if NEATPLATES_IS_CLASSIC then
+	if NEATPLATES_IS_CLASSIC or NEATPLATES_IS_RETAIL then
 		EnableAbsorbWidget = false
+	end
+	if NEATPLATES_IS_RETAIL then
+		-- These legacy widgets calculate or compare restricted combat values.
+		-- Core threat coloring remains available through UnitThreatSituation.
+		EnableThreatWidget = false
+		EnableThreatPercentageWidget = false
+		EnableRangeWidget = false
 	end
 
 	InitWidget( "ClassWidgetHub", extended, configTable.ClassIcon, CreateClassWidget, EnableClassWidget)
@@ -760,7 +767,7 @@ local function OnVariableChange(vars)
 		NeatPlatesWidgets.SetEmphasizedAuraFilter(EmphasizedFilter, LocalVars.EmphasizedUnique)
 	else NeatPlatesWidgets:DisableAuraWatcher() end
 
-	if LocalVars.WidgetAbsorbIndicator then
+	if LocalVars.WidgetAbsorbIndicator and NeatPlatesWidgets.SetAbsorbType then
 		NeatPlatesWidgets.SetAbsorbType(LocalVars.WidgetAbsorbMode, LocalVars.WidgetAbsorbUnits)
 	end
 

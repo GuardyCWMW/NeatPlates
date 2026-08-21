@@ -1,5 +1,6 @@
 local PolledHideIn = NeatPlatesWidgets.PolledHideIn
 local WidgetList = {}
+local RetailTargetWidget
 local PlayerClass = select(2, UnitClass("player"))
 local PlayerSpec = 0
 local TimerFont = "FONTS\\ARIALN.TTF"
@@ -487,6 +488,12 @@ end
 
 -- Widget Context
 local function ClearWidgetContext(frame)
+	if NEATPLATES_IS_RETAIL then
+		if RetailTargetWidget == frame then RetailTargetWidget = nil end
+		frame.guid = nil
+		return
+	end
+
 	local guid = frame.guid
 	if guid then
 		WidgetList[guid] = nil
@@ -495,13 +502,31 @@ local function ClearWidgetContext(frame)
 end
 
 local function UpdateWidgetContext(frame, unit)
-	local guid = unit.guid
-
     -- Update settings
     table.foreach(frame.Points, function(k, f)
         f.TimeLeft:SetFont(TimerFont, timerFontSize, "OUTLINE")
         if displayTimer then f.TimeLeft:Show() else f.TimeLeft:Hide() end
     end)
+
+	-- Enemy identities and GUIDs are secret in restricted Retail content. The
+	-- resource display only belongs to the current target, so use the safe
+	-- target state supplied by the nameplate context instead of a GUID lookup.
+	if NEATPLATES_IS_RETAIL then
+		if unit.isTarget then
+			if RetailTargetWidget and RetailTargetWidget ~= frame then
+				RetailTargetWidget:_Hide()
+			end
+			RetailTargetWidget = frame
+			frame:Show()
+			frame:Update()
+		else
+			if RetailTargetWidget == frame then RetailTargetWidget = nil end
+			frame:_Hide()
+		end
+		return
+	end
+
+	local guid = unit.guid
 
 	-- Add to Widget List
 	if guid then
@@ -533,6 +558,16 @@ WatcherFrame:RegisterEvent("UNIT_AURA")
 WatcherFrame:RegisterEvent("UNIT_FLAGS")
 
 local function WatcherFrameHandler(frame, event, unitid)
+	if NEATPLATES_IS_RETAIL then
+		if event == "PLAYER_TARGET_CHANGED" then
+			if RetailTargetWidget then RetailTargetWidget:_Hide() end
+			RetailTargetWidget = nil
+			return
+		end
+		if RetailTargetWidget then UpdateWidgetFrame(RetailTargetWidget) end
+		return
+	end
+
     local guid = UnitGUID("target")
     if UnitExists("target") then
         local widget = WidgetList[guid]

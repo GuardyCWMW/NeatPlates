@@ -1,5 +1,13 @@
 NeatPlatesUtility = {}
 
+if NEATPLATES_IS_RETAIL then
+	NeatPlatesUtility.EnableHealerTrack = function() end
+	NeatPlatesUtility.DisableHealerTrack = function() end
+	NeatPlatesUtility.IsHealer = function()
+		return false
+	end
+end
+
 -------------------------------------------------------------------------------------
 --  General Helpers
 -------------------------------------------------------------------------------------
@@ -323,9 +331,17 @@ local function GetTotemOwner(unitid)
 	return ownerGUID, owner, ownerIsPlayer -- This is the pet's owner
 end
 
-NeatPlatesUtility.GetUnitSubtitle = GetUnitSubtitle
-NeatPlatesUtility.GetPetOwner = GetPetOwner
-NeatPlatesUtility.GetTotemOwner = GetTotemOwner
+if NEATPLATES_IS_RETAIL then
+	-- Tooltip unit payloads may be secret in Retail 12.1. The legacy scanner
+	-- performs string comparisons and cannot safely consume those values.
+	NeatPlatesUtility.GetUnitSubtitle = function() return nil end
+	NeatPlatesUtility.GetPetOwner = function() return nil, nil end
+	NeatPlatesUtility.GetTotemOwner = function() return nil, nil end
+else
+	NeatPlatesUtility.GetUnitSubtitle = GetUnitSubtitle
+	NeatPlatesUtility.GetPetOwner = GetPetOwner
+	NeatPlatesUtility.GetTotemOwner = GetTotemOwner
+end
 
 ------------------------------------------
 -- Quest Info
@@ -481,6 +497,7 @@ local function GetArenaIndex(unitname)
 		for i = 1, #arenaUnitIDs do
 			unitid = arenaUnitIDs[i]
 			name = UnitName(unitid)
+			if NEATPLATES_IS_RETAIL and issecretvalue and issecretvalue(name) then name = nil end
 			if name and (name == unitname) then return i end
 		end
 	end
@@ -488,6 +505,8 @@ end
 
 if NEATPLATES_IS_CLASSIC then
 	NeatPlatesUtility.GetUnitQuestInfo = GetUnitQuestInfoClassic
+elseif NEATPLATES_IS_RETAIL then
+	NeatPlatesUtility.GetUnitQuestInfo = function() return {} end
 else
 	NeatPlatesUtility.GetUnitQuestInfo = GetUnitQuestInfo
 end
@@ -508,6 +527,7 @@ local function GetFriendlyThreat(unitid)
 
 		--if isUnitInParty then
 			local unitaggro = UnitThreatSituation(unitid)
+			if NEATPLATES_IS_RETAIL and issecretvalue and issecretvalue(unitaggro) then return false end
 			if unitaggro and unitaggro > 1 then return true end
 		--end
 	end
@@ -642,7 +662,11 @@ do
 
 	end
 
-	NeatPlatesUtility.GetRelativeThreat = GetRelativeThreat
+	if NEATPLATES_IS_RETAIL then
+		NeatPlatesUtility.GetRelativeThreat = function() return nil end
+	else
+		NeatPlatesUtility.GetRelativeThreat = GetRelativeThreat
+	end
 end
 ------------------------------------------------------------------
 -- Panel Helpers (Used to create interface panels)
@@ -1778,7 +1802,9 @@ local function CreateAuraManagement(self, objectName, parent, width, height)
 	frame.AuraName:SetHeight(25)
 	frame.AuraName:SetPoint("TOPLEFT", frame.AuraNameLabel, "BOTTOMLEFT", 4, -2)
 	frame.AuraName:SetAutoFocus(false)
-	NeatPlatesUtility.SetFont(frame.AuraName, NeatPlatesLocalizedInputFont or "Fonts\\FRIZQT__.TTF", 11, "FIXEDHEIGHT")
+	NeatPlatesUtility.SetFont(frame.AuraName, NeatPlatesLocalizedInputFont or "Fonts\\FRIZQT__.TTF", 14)
+	frame.AuraName:SetTextInsets(8, 8, 0, 0)
+	frame.AuraName:SetTextColor(1, 1, 1, 1)
 	frame.AuraName:SetFrameStrata("DIALOG")
 	frame.AuraName.objectName = "name"
 	frame.AuraName:SetScript("OnTextChanged", function() frame.OnValueChanged(frame.AuraName) end)

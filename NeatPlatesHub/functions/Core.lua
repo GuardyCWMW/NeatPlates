@@ -39,6 +39,19 @@ local InstanceStatus = NeatPlatesUtility.InstanceStatus
 
 local LastErrorMessage = 0
 
+local function IsSecretValue(value)
+	return NEATPLATES_IS_RETAIL and issecretvalue and issecretvalue(value)
+end
+
+local function IsUnitTargetingPlayer(unit)
+	if not unit or not unit.unitid then return false end
+
+	local isTargetingPlayer = UnitIsUnit(unit.unitid.."target", "player")
+	if IsSecretValue(isTargetingPlayer) then return false end
+
+	return isTargetingPlayer
+end
+
 local function HasNamePlateFunction(name)
 	return C_NamePlate and type(C_NamePlate[name]) == "function"
 end
@@ -76,8 +89,7 @@ local function ShouldSuppressTankHighlight(unit)
 	if not LocalVars.ThreatSuppressTankHighlight then return false end
 	if not unit or not unit.unitid then return false end
 
-	local targetOf = unit.unitid.."target"
-	if UnitIsUnit(targetOf, "player") then return false end
+	if IsUnitTargetingPlayer(unit) then return false end
 
 	return IsEnemyTanked(unit)
 end
@@ -85,6 +97,7 @@ end
 local function ThreatExceptions(unit, isTank, noSafeColor)
 	if not unit or not unit.unitid then return end
 	local unitGUID = UnitGUID(unit.unitid)
+	if NEATPLATES_IS_RETAIL and issecretvalue and issecretvalue(unitGUID) then return end
 	if not unitGUID then return end
 	unitGUID = select(6, strsplit("-", unitGUID))
 	-- Mobs from Reaping affix
@@ -96,7 +109,7 @@ local function ThreatExceptions(unit, isTank, noSafeColor)
 
 	-- Special case dealing with mobs from Reaping affix and units that fixate
 	if souls[unitGUID] or unit.fixate then
-		local playerIsTarget = unit.fixate or UnitIsUnit(unit.unitid.."target", "player")
+		local playerIsTarget = unit.fixate or IsUnitTargetingPlayer(unit)
 		if (playerIsTarget and isTank) or (not playerIsTarget and not isTank) then
 				return noSafeColor or LocalVars.ColorThreatSafe
 		else
