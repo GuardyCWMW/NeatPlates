@@ -263,6 +263,7 @@ L["Enable Aura Widget"] = true
 		L["Show None"] = true
 		L["Show Mine"] = true
 		L["Show All"] = true
+		L["Show Blizzard-selected"] = true
 	L["Enable Pandemic Highlighting"] = true
 	L["Include Purgeable Buffs"] = true
 	L["Include Enrage Buffs"] = true

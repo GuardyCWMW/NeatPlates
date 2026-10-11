@@ -1,0 +1,8 @@
+## Interface: 16001
+## Title: NeatPlates: |cffff6060ClassicPlates
+## IconTexture: Interface\AddOns\NeatPlates\Media\NeatPlatesIcon.tga
+## Notes: Vanilla-Style Plates.
+## Author: delabarra
+## Dependencies: NeatPlates, NeatPlatesHub
+
+NeatPlates_ClassicPlates.lua

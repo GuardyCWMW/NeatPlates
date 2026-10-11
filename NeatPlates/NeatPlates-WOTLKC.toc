@@ -1,7 +1,7 @@
 ## Interface: 30404
 ## Title: NeatPlates
 ## IconTexture: Interface\AddOns\NeatPlates\Media\NeatPlatesIcon.tga
-## Notes: Enjoys long walks on Darkshore
+## Notes: Community Edition - Maintained by guardycmw
 ## Author: Luxocracy and friends
 ## Version: v468
 ## SavedVariables: NeatPlatesSettings

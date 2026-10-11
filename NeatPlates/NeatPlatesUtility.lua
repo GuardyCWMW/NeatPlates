@@ -249,6 +249,53 @@ end
 -- Unit Subtitles/NPC Roles
 ------------------------------------------
 local UnitSubtitles = {}
+
+local function IsSecretTooltipValue(value)
+	return issecretvalue and issecretvalue(value)
+end
+
+local function GetForeverUnitSubtitle(unit)
+	if type(unit) ~= "table" or not C_TooltipInfo or not C_TooltipInfo.GetUnit then return end
+
+	local unitid = unit.unitid
+	if not unitid then return end
+
+	local exists = UnitExists(unitid)
+	if IsSecretTooltipValue(exists) or not exists then return end
+
+	local isPlayer = UnitIsPlayer(unitid)
+	local isPlayerControlled = UnitPlayerControlled(unitid)
+	if IsSecretTooltipValue(isPlayer) or IsSecretTooltipValue(isPlayerControlled) then return end
+	if isPlayer or isPlayerControlled then return end
+
+	local cacheKey = unit.name
+	if IsSecretTooltipValue(cacheKey) or type(cacheKey) ~= "string" or cacheKey == "" then
+		cacheKey = nil
+	elseif UnitSubtitles[cacheKey] ~= nil then
+		return UnitSubtitles[cacheKey] or nil
+	end
+
+	local success, tooltipData = pcall(C_TooltipInfo.GetUnit, unitid)
+	if not success or IsSecretTooltipValue(tooltipData) or not tooltipData then return end
+
+	local lines = tooltipData.lines
+	if IsSecretTooltipValue(lines) or not lines then return end
+
+	local colorblindMode = GetCVar("colorblindMode") == "1"
+	local line = lines[colorblindMode and 3 or 2]
+	if IsSecretTooltipValue(line) or not line then return end
+
+	local subTitle = line.leftText
+	if IsSecretTooltipValue(subTitle) or type(subTitle) ~= "string" or subTitle == "" then return end
+
+	if UNIT_LEVEL_TEMPLATE and string.match(subTitle, UNIT_LEVEL_TEMPLATE) then
+		subTitle = false
+	end
+
+	if cacheKey then UnitSubtitles[cacheKey] = subTitle end
+	return subTitle or nil
+end
+
 local function GetUnitSubtitle(unit)
 	local unitid = unit.unitid
 	local colorblindMode = GetCVar("colorblindMode") == "1" -- Color blind mode seems to shift this down one row.
@@ -331,7 +378,11 @@ local function GetTotemOwner(unitid)
 	return ownerGUID, owner, ownerIsPlayer -- This is the pet's owner
 end
 
-if NEATPLATES_IS_RETAIL then
+if NEATPLATES_IS_FOREVER then
+	NeatPlatesUtility.GetUnitSubtitle = GetForeverUnitSubtitle
+	NeatPlatesUtility.GetPetOwner = function() return nil, nil end
+	NeatPlatesUtility.GetTotemOwner = function() return nil, nil end
+elseif NEATPLATES_IS_RETAIL then
 	-- Tooltip unit payloads may be secret in Retail 12.1. The legacy scanner
 	-- performs string comparisons and cannot safely consume those values.
 	NeatPlatesUtility.GetUnitSubtitle = function() return nil end

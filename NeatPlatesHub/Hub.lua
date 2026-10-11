@@ -38,6 +38,7 @@ local RangeStyles = NeatPlatesHubMenus.RangeStyles
 local RangeUnits = NeatPlatesHubMenus.RangeUnits
 local AuraWidgetModes = NeatPlatesHubMenus.AuraWidgetModes
 local PrimaryAuraFilters = NeatPlatesHubMenus.PrimaryAuraFilters
+local DebuffAuraFilters = NeatPlatesHubMenus.DebuffAuraFilters or PrimaryAuraFilters
 local DebuffStyles = NeatPlatesHubMenus.DebuffStyles
 local AuraSortModes = NeatPlatesHubMenus.AuraSortModes
 local AuraAlignmentModes = NeatPlatesHubMenus.AuraAlignmentModes
@@ -229,7 +230,7 @@ local function BuildHubPanel(panel)
 	panel.WidgetDebuff = CreateQuickCheckbutton(objectName.."WidgetDebuff", L["Enable Aura Widget"], AlignmentColumn, panel.DebuffsLabel)
 
 	--panel.WidgetAuraMode =  CreateQuickDropdown(objectName.."WidgetAuraMode", "Filter Mode:", AuraWidgetModes, 1, AlignmentColumn, panel.WidgetDebuffStyle, 16)		-- used to be WidgetDebuffMode
-	panel.WidgetDebuffFilter =  CreateQuickDropdown(objectName.."WidgetDebuffFilter", L["Debuff Filter"]..':', PrimaryAuraFilters, 2, AlignmentColumn, panel.WidgetDebuff, 16)
+	panel.WidgetDebuffFilter =  CreateQuickDropdown(objectName.."WidgetDebuffFilter", L["Debuff Filter"]..':', DebuffAuraFilters, 2, AlignmentColumn, panel.WidgetDebuff, 16)
 	panel.WidgetBuffFilter =  CreateQuickDropdown(objectName.."WidgetBuffFilter", L["Buff Filter"]..':', PrimaryAuraFilters, 1, AlignmentColumn, panel.WidgetDebuff, OffsetColumnB)
 	--panel.WidgetAllAuras = CreateQuickCheckbutton(objectName.."WidgetAllAuras", L["Include All Auras"], AlignmentColumn, panel.WidgetDebuff, 16)
 	--panel.WidgetAllAuras.tooltipText = L["Display all auras that have been applied regardless of source or duration."]

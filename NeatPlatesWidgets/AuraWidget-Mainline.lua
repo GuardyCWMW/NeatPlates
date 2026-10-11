@@ -16,6 +16,55 @@ local AuraLimit = 9
 local DebuffFilterMode = 2
 local BuffFilterMode = 1
 local DebuffStyle = 1
+local AdditionalAuras = {}
+
+local function ResolveSpellID(spellIdentifier)
+	local spellID = tonumber(spellIdentifier)
+	if spellID then return spellID end
+	if type(spellIdentifier) ~= "string" or spellIdentifier == "" then return nil end
+
+	if C_Spell and C_Spell.GetSpellInfo then
+		local success, info = pcall(C_Spell.GetSpellInfo, spellIdentifier)
+		if success and info and info.spellID and not (issecretvalue and issecretvalue(info.spellID)) then
+			return info.spellID
+		end
+	end
+
+	return nil
+end
+
+local function AddAuraChoices(choices, auraList)
+	for _, aura in pairs(auraList or {}) do
+		if type(aura) == "table" and (aura.type == nil or aura.type == "normal") then
+			local spellID = ResolveSpellID(aura.name)
+			if spellID then choices[spellID] = aura.filter end
+		end
+	end
+end
+
+local function GetAdditionalAuraFilters()
+	local choices = {}
+	local excluded = {}
+	local includeMine = {}
+	local includeAll = {}
+
+	-- Profile entries override global entries, matching the legacy aura filter.
+	AddAuraChoices(choices, NeatPlatesSettings and NeatPlatesSettings.GlobalAdditonalAuras)
+	AddAuraChoices(choices, AdditionalAuras)
+
+	for spellID, filter in pairs(choices) do
+		-- Explicit entries are removed from the automatic group so they cannot
+		-- appear twice when an include group adds them back.
+		excluded[spellID] = true
+		if filter == "my" then
+			includeMine[spellID] = true
+		elseif filter == "all" then
+			includeAll[spellID] = true
+		end
+	end
+
+	return excluded, includeMine, includeAll
+end
 
 local function CreateDurationFormatter()
 	if not (C_StringUtil and C_StringUtil.CreateNumericRuleFormatter) then return nil end
@@ -91,6 +140,7 @@ local function ApplyAuraButtonStyle(auraButton)
 	if auraButton.Cooldown then
 		auraButton.Cooldown:SetAllPoints(auraButton)
 		auraButton.Cooldown:SetHideCountdownNumbers(true)
+		auraButton.Cooldown:SetReverse(true)
 	end
 
 	if auraButton.Count then
@@ -128,6 +178,7 @@ local function InitializeAuraButton(auraButton)
 	cooldown:EnableMouse(false)
 	cooldown:SetHideCountdownNumbers(true)
 	cooldown:SetDrawBling(false)
+	cooldown:SetReverse(true)
 	auraButton.Cooldown = cooldown
 	auraButton:SetDurationCooldown(cooldown)
 
@@ -147,13 +198,19 @@ end
 
 local function ConfigureContainer(frame)
 	local layout = GetLayout()
+	local excluded, includeMine, includeAll = GetAdditionalAuraFilters()
 
 	local debuffFilter = "HARMFUL|PLAYER"
 	local debuffMax = AuraLimit
+	local debuffCandidates = { excludeSpellIDs = excluded }
 	if DebuffFilterMode == 1 then
 		debuffMax = 0
 	elseif DebuffFilterMode == 3 then
 		debuffFilter = "HARMFUL"
+	elseif DebuffFilterMode == 4 then
+		-- Retail's native recommendation flag is the protected equivalent of
+		-- "debuffs Blizzard nameplates show" and avoids pet/proc clutter.
+		debuffCandidates.nameplateShowPersonal = true
 	end
 
 	local buffFilter = "HELPFUL"
@@ -165,10 +222,23 @@ local function ConfigureContainer(frame)
 		buffMax = AuraLimit
 	end
 
+	frame:SetAuraGroupCandidateFilters("debuffs", debuffCandidates)
 	frame:SetAuraGroupFilterString("debuffs", debuffFilter)
 	frame:SetAuraGroupMaxFrameCount("debuffs", debuffMax)
 	frame:SetAuraGroupSortMethod("debuffs", AuraContainerSortMethod.Expiration, AuraContainerSortDirection.Normal)
 	frame:SetAuraGroupLayout("debuffs", layout)
+
+	frame:SetAuraGroupCandidateFilters("debuffIncludesMine", { includeSpellIDs = includeMine })
+	frame:SetAuraGroupFilterString("debuffIncludesMine", "HARMFUL|PLAYER")
+	frame:SetAuraGroupMaxFrameCount("debuffIncludesMine", next(includeMine) and AuraLimit or 0)
+	frame:SetAuraGroupSortMethod("debuffIncludesMine", AuraContainerSortMethod.Expiration, AuraContainerSortDirection.Normal)
+	frame:SetAuraGroupLayout("debuffIncludesMine", layout)
+
+	frame:SetAuraGroupCandidateFilters("debuffIncludesAll", { includeSpellIDs = includeAll })
+	frame:SetAuraGroupFilterString("debuffIncludesAll", "HARMFUL")
+	frame:SetAuraGroupMaxFrameCount("debuffIncludesAll", next(includeAll) and AuraLimit or 0)
+	frame:SetAuraGroupSortMethod("debuffIncludesAll", AuraContainerSortMethod.Expiration, AuraContainerSortDirection.Normal)
+	frame:SetAuraGroupLayout("debuffIncludesAll", layout)
 
 	frame:SetAuraGroupFilterString("buffs", buffFilter)
 	frame:SetAuraGroupMaxFrameCount("buffs", buffMax)
@@ -210,8 +280,21 @@ local function UpdateWidgetOffset(frame, x, y)
 	frame.lastOffset.y = y
 
 	local config = frame.lastConfig
+	local anchor = config.anchor or "TOP"
+	local anchorRel = config.anchorRel or anchor
+
+	-- AuraContainer sizes itself to its visible children. Map the legacy
+	-- alignment to the plate edges instead of letting a single icon recenter.
+	if anchor == "BOTTOM" and anchorRel == "TOP" then
+		if AuraAlignment == "BOTTOMLEFT" then
+			anchor, anchorRel = "BOTTOMLEFT", "TOPLEFT"
+		elseif AuraAlignment == "BOTTOMRIGHT" then
+			anchor, anchorRel = "BOTTOMRIGHT", "TOPRIGHT"
+		end
+	end
+
 	frame:ClearAllPoints()
-	frame:SetPoint(config.anchor or "TOP", config.relFrame or frame:GetParent(), config.anchorRel or config.anchor or "TOP", config.x or 0, (config.y or 0) + y)
+	frame:SetPoint(anchor, config.relFrame or frame:GetParent(), anchorRel, config.x or 0, (config.y or 0) + y)
 end
 
 local function SetCustomPoint(frame, anchor, relFrame, anchorRel, x, y)
@@ -241,6 +324,22 @@ local function CreateAuraWidget(parent)
 		sortDirection = AuraContainerSortDirection.Normal,
 		initializeFrame = InitializeAuraButton,
 		layout = layout,
+	})
+	frame:AddAuraGroup("debuffIncludesMine", "HARMFUL|PLAYER", {
+		maxFrameCount = 0,
+		sortMethod = AuraContainerSortMethod.Expiration,
+		sortDirection = AuraContainerSortDirection.Normal,
+		initializeFrame = InitializeAuraButton,
+		layout = layout,
+		candidateFilters = { includeSpellIDs = {} },
+	})
+	frame:AddAuraGroup("debuffIncludesAll", "HARMFUL", {
+		maxFrameCount = 0,
+		sortMethod = AuraContainerSortMethod.Expiration,
+		sortDirection = AuraContainerSortDirection.Normal,
+		initializeFrame = InitializeAuraButton,
+		layout = layout,
+		candidateFilters = { includeSpellIDs = {} },
 	})
 	frame:AddAuraGroup("buffs", "HELPFUL", {
 		maxFrameCount = AuraLimit,
@@ -281,7 +380,11 @@ local function SetAuraOptions(options)
 	DebuffFilterMode = tonumber(options.WidgetDebuffFilter) or DebuffFilterMode
 	BuffFilterMode = tonumber(options.WidgetBuffFilter) or BuffFilterMode
 	DebuffStyle = tonumber(options.WidgetDebuffStyle) or DebuffStyle
-	for frame in pairs(Containers) do ConfigureContainer(frame) end
+	AdditionalAuras = options.WidgetAdditionalAuras or AdditionalAuras
+	for frame in pairs(Containers) do
+		ConfigureContainer(frame)
+		UpdateWidgetOffset(frame)
+	end
 end
 
 local function EnableAuraWatcher()

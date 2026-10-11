@@ -1,0 +1,9 @@
+## Interface: 16001
+## Title: NeatPlates Widgets
+## IconTexture: Interface\AddOns\NeatPlates\Media\NeatPlatesIcon.tga
+## Notes: NeatPlates Widgets for World of Warcraft: Forever
+## Author: guardycmw (original by Luxocracy and friends)
+## Version: v468-ce7.3
+## Dependencies: NeatPlates
+
+Widgets-Mainline.xml

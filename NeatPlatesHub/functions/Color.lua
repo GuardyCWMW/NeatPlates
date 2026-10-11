@@ -703,9 +703,30 @@ end
 -- Local Variable
 ------------------------------------------------------------------------------
 
+local function ShouldUseRetailEnemyClassColor(forName)
+	if not NEATPLATES_IS_RETAIL or not LocalVars then return false end
+
+	if forName then
+		return LocalVars.EnemyNameColorMode == "ByClass"
+			or LocalVars.EnemyNameColorMode == "ByThreat"
+			or LocalVars.EnemyHeadlineColor == "ByClass"
+			or LocalVars.EnemyHeadlineColor == "ByThreat"
+	end
+
+	return LocalVars.EnemyBarColorMode == "ByClass" or LocalVars.EnemyBarColorMode == "ByThreat"
+end
+
 local function OnVariableChange(vars)
 	LocalVars = vars
 	RetailHealthTextColorCurve = nil
+	if ShouldUseRetailEnemyClassColor(false) or ShouldUseRetailEnemyClassColor(true) then
+		if C_CVar and C_CVar.GetCVar and C_CVar.GetCVar("nameplateShowClassColor") ~= nil then
+			pcall(SetCVar, "nameplateShowClassColor", 1)
+		end
+		if GetCVar and GetCVar("ShowClassColorInNameplate") ~= nil then
+			pcall(SetCVar, "ShowClassColorInNameplate", 1)
+		end
+	end
 	if (EnemyBarFunctions[LocalVars.EnemyBarColorMode] == ColorFunctionByThreat) or LocalVars.ThreatGlowEnable then
 		SetCVar("threatWarning", 3)
 	end
@@ -721,6 +742,7 @@ NeatPlatesHubFunctions.SetPowerbarColor = PowerColorDelegate
 NeatPlatesHubFunctions.SetCastbarColor = CastBarDelegate
 NeatPlatesHubFunctions.SetThreatColor = ThreatColorDelegate
 NeatPlatesHubFunctions.SetNameColor = SetNameColorDelegate
+NeatPlatesHubFunctions.ShouldUseRetailEnemyClassColor = ShouldUseRetailEnemyClassColor
 
 
 

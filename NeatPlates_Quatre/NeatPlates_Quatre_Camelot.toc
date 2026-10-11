@@ -1,0 +1,8 @@
+## Interface: 16001
+## Title: NeatPlates: Quatre Theme
+## IconTexture: Interface\AddOns\NeatPlates\Media\NeatPlatesIcon.tga
+## Notes: It's the 4th!
+## Author: Binny
+## Dependencies: NeatPlates, NeatPlatesHub
+
+Quatre.lua

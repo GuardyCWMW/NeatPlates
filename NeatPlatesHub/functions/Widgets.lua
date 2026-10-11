@@ -65,6 +65,16 @@ NeatPlatesHubMenus.PrimaryAuraFilters = {
 				{ text = L["Show All"],  } ,
 			}
 
+NeatPlatesHubMenus.DebuffAuraFilters = NeatPlatesHubMenus.PrimaryAuraFilters
+if NEATPLATES_IS_RETAIL then
+	NeatPlatesHubMenus.DebuffAuraFilters = {
+		{ text = L["Show None"],  } ,
+		{ text = L["Show Mine"],  } ,
+		{ text = L["Show All"],  } ,
+		{ text = L["Show Blizzard-selected"],  } ,
+	}
+end
+
 NeatPlatesHubDefaults.WidgetComboPoints = 1
 NeatPlatesHubMenus.ComboPointsModes = {
 				{ text = L["Enemy Units"],  } ,

@@ -173,12 +173,22 @@ end
 local function KeepBlizzardUnitFrameAsAnchor(unitFrame)
 	if not unitFrame then return end
 
+	-- Forever's target highlight ignores its parent alpha by default and can
+	-- briefly bleed through the custom plate when Blizzard refreshes it.
+	if NEATPLATES_IS_FOREVER and unitFrame.selectionHighlight and unitFrame.selectionHighlight.SetIgnoreParentAlpha then
+		unitFrame.selectionHighlight:SetIgnoreParentAlpha(false)
+	end
+
 	unitFrame:Show()
 	SetBlizzardUnitFrameVisualAlpha(unitFrame, 0)
 end
 
 local function ShowBlizzardUnitFrame(unitFrame)
 	if not unitFrame then return end
+
+	if NEATPLATES_IS_FOREVER and unitFrame.selectionHighlight and unitFrame.selectionHighlight.SetIgnoreParentAlpha then
+		unitFrame.selectionHighlight:SetIgnoreParentAlpha(true)
+	end
 
 	unitFrame:Show()
 	SetBlizzardUnitFrameVisualAlpha(unitFrame, 1)
@@ -439,6 +449,7 @@ local UpdateIndicator_Level, UpdateIndicator_ThreatGlow, UpdateIndicator_RaidIco
 local UpdateIndicator_EliteIcon, UpdateIndicator_UnitColor, UpdateIndicator_Name
 local UpdateIndicator_HealthBar, UpdateIndicator_Highlight, UpdateIndicator_ExtraBar, UpdateIndicator_PowerBar
 local OnUpdateCasting, OnStartCasting, OnStopCasting, OnUpdateCastMidway, OnUpdateCastInterruptibility, OnInterruptedCast
+local ApplyCastInterruptibilityVisuals, UpdateCastbarColor
 
 -- Event Functions
 local OnShowNameplate, OnHideNameplate, OnUpdateNameplate, OnResetNameplate
@@ -585,9 +596,9 @@ do
 		local widgetSetID = UnitWidgetSet(unitid);
 		if widgetSetID then
 			-- Retail widget payloads may contain secret values. Keep Blizzard's
-			-- protected widget plate intact instead of rebuilding it in Lua.
+			-- protected widget plate intact when the user requests Blizzard widgets.
 			if NEATPLATES_IS_RETAIL then
-				return true
+				return NeatPlatesOptions.BlizzardWidgets == true
 			end
 
 			local widgetSet = C_UIWidgetManager.GetAllWidgetsBySetID(widgetSetID)
@@ -899,6 +910,7 @@ local function NameplateEventHandler(self, event, ...)
 	elseif event == "UNIT_SPELLCAST_INTERRUPTIBLE" then
 		if not ShowCastBars then return end
 		if NEATPLATES_IS_RETAIL then
+			OnUpdateCastMidway(self, unitid)
 			OnUpdateCastInterruptibility(self, false)
 		else
 			OnUpdateCastMidway(self, unitid)
@@ -906,6 +918,7 @@ local function NameplateEventHandler(self, event, ...)
 	elseif event == "UNIT_SPELLCAST_NOT_INTERRUPTIBLE" then
 		if not ShowCastBars then return end
 		if NEATPLATES_IS_RETAIL then
+			OnUpdateCastMidway(self, unitid)
 			OnUpdateCastInterruptibility(self, true)
 		else
 			OnUpdateCastMidway(self, unitid)
@@ -1218,16 +1231,32 @@ do
 	end
 
 	local function GetReactionByUnit(unit)
-		local reaction = UnitReaction("player", unit.unitid)
-		local isEnemy = UnitExists(unit.unitid) and UnitIsEnemy("player", unit.unitid)
+		local reaction = UnitReaction(unit.unitid, "player")
+		local isEnemy = UnitIsEnemy("player", unit.unitid)
+		local canAttack = UnitCanAttack("player", unit.unitid)
+		local isFriend = UnitIsFriend("player", unit.unitid)
+		local canAssist = UnitCanAssist("player", unit.unitid)
 
-		if reaction == 4 then
-			return "NEUTRAL"
-		elseif isEnemy then
+		if reaction ~= nil and not IsSecretValue(reaction) then
+			if reaction == 4 then
+				return "NEUTRAL"
+			elseif reaction < 4 then
+				return "HOSTILE"
+			elseif reaction > 4 then
+				return "FRIENDLY"
+			end
+		end
+
+		if not IsSecretValue(isEnemy) and isEnemy then
 			return "HOSTILE"
-		elseif reaction < 4 then
+		end
+		if not IsSecretValue(canAttack) and canAttack then
 			return "HOSTILE"
-		elseif reaction > 4 then
+		end
+		if not IsSecretValue(isFriend) and isFriend then
+			return "FRIENDLY"
+		end
+		if not IsSecretValue(canAssist) and canAssist then
 			return "FRIENDLY"
 		end
 
@@ -1362,8 +1391,11 @@ do
 		if IsSecretValue(unit.red) or IsSecretValue(unit.green) or IsSecretValue(unit.blue) then
 			unit.red, unit.green, unit.blue = 1, 0, 0
 		end
-		unit.reaction = GetReactionByColor(unit.red, unit.green, unit.blue) or "HOSTILE"
-		-- unit.reaction = GetReactionByUnit(unit) or "HOSTILE"
+		if NEATPLATES_IS_RETAIL then
+			unit.reaction = GetReactionByUnit(unit) or GetReactionByColor(unit.red, unit.green, unit.blue) or "HOSTILE"
+		else
+			unit.reaction = GetReactionByColor(unit.red, unit.green, unit.blue) or "HOSTILE"
+		end
 
 		local powerType = UnitPowerType(unitid)
 		if powerType == nil or IsSecretValue(powerType) then powerType = 0 end
@@ -1398,13 +1430,19 @@ do
 		if IsSecretValue(unit.alphaMult) then unit.alphaMult = 1 end
 
 		local raidIconIndex = GetRaidTargetIndex(unitid)
-		if IsSecretValue(raidIconIndex) then raidIconIndex = nil end
-
-		if raidIconIndex then
-			unit.raidIcon = RaidIconList[raidIconIndex]
-			unit.isMarked = true
+		if NEATPLATES_IS_RETAIL then
+			-- The index can be secret on Retail. Keep it opaque and pass it only
+			-- to Blizzard's native raid-icon texture sink.
+			extended.retailRaidIconIndex = raidIconIndex
+			unit.raidIcon = nil
+			unit.isMarked = raidIconIndex and true or false
 		else
-			unit.isMarked = false
+			if raidIconIndex then
+				unit.raidIcon = RaidIconList[raidIconIndex]
+				unit.isMarked = true
+			else
+				unit.isMarked = false
+			end
 		end
 
 		-- Unfinished....
@@ -1574,6 +1612,12 @@ do
 	-- UpdateIndicator_ExtraBar
 	function UpdateIndicator_ExtraBar()
 		if not unit or not unit.unitid then return end
+		if NEATPLATES_IS_RETAIL then
+			-- Retail widget payloads can be protected. When Blizzard widgets are
+			-- disabled, keep the regular NeatPlates plate and omit the extra bar.
+			visual.extrabar:Hide()
+			return
+		end
 		local widgetSetID = UnitWidgetSet(unit.unitid);
 
 		if widgetSetID then
@@ -1644,6 +1688,17 @@ do
 
 	-- UpdateIndicator_RaidIcon
 	function UpdateIndicator_RaidIcon()
+		if NEATPLATES_IS_RETAIL then
+			local raidIconIndex = extended.retailRaidIconIndex
+			if raidIconIndex and style.raidicon.show and style.raidicon.enabled and SetRaidTargetIconTexture then
+				SetRaidTargetIconTexture(visual.raidicon, raidIconIndex)
+				visual.raidicon:Show()
+			else
+				visual.raidicon:Hide()
+			end
+			return
+		end
+
 		if unit.isMarked and style.raidicon.show and style.raidicon.enabled then
 			local iconCoord = RaidIconCoordinate[unit.raidIcon]
 			if iconCoord then
@@ -1663,11 +1718,109 @@ do
 	end
 
 
+	local RetailArenaUnits = {"arena1", "arena2", "arena3", "arena4", "arena5"}
+
+	local function RetailColorValueOrDefault(value, default)
+		if IsSecretValue(value) then return value end
+		return value == nil and default or value
+	end
+
+	local function SelectRetailColorByState(state, trueColor, r, g, b, a)
+		if IsSecretValue(state) then
+			return C_CurveUtil.EvaluateColorValueFromBoolean(state, trueColor.r, RetailColorValueOrDefault(r, 1)),
+				C_CurveUtil.EvaluateColorValueFromBoolean(state, trueColor.g, RetailColorValueOrDefault(g, 0)),
+				C_CurveUtil.EvaluateColorValueFromBoolean(state, trueColor.b, RetailColorValueOrDefault(b, 0)),
+				a
+		elseif state then
+			return trueColor.r, trueColor.g, trueColor.b, a
+		end
+
+		return r, g, b, a
+	end
+
+	local function GetRetailClassColor(unitid)
+		local _, class = UnitClass(unitid)
+		if IsSecretValue(class) then
+			-- Midnight allows secret class tokens to pass directly into this API.
+			-- They cannot be used as keys in the addon's Lua color table.
+			if C_ClassColor and C_ClassColor.GetClassColor then
+				return C_ClassColor.GetClassColor(class)
+			end
+			return
+		end
+
+		if not class then return end
+		local classColors = NEATPLATES_CLASS_COLORS or RAID_CLASS_COLORS
+		local classColor = classColors and classColors[class]
+		if classColor then return classColor end
+		return C_ClassColor and C_ClassColor.GetClassColor and C_ClassColor.GetClassColor(class)
+	end
+
+	local function ApplyRetailProtectedPlayerColor(r, g, b, a, forName)
+		if not NEATPLATES_IS_RETAIL
+			or not NeatPlatesHubFunctions
+			or not NeatPlatesHubFunctions.ShouldUseRetailEnemyClassColor
+			or not NeatPlatesHubFunctions.ShouldUseRetailEnemyClassColor(forName)
+			or not C_CurveUtil
+			or not C_CurveUtil.EvaluateColorValueFromBoolean
+		then
+			return r, g, b, a
+		end
+
+		local baseR, baseG, baseB, baseA = r, g, b, a
+		local isPlayer = UnitIsPlayer(unit.unitid)
+		local blizzardHealthbar = nameplate.UnitFrame
+			and nameplate.UnitFrame.HealthBarsContainer
+			and nameplate.UnitFrame.HealthBarsContainer.healthBar
+
+		if IsSecretValue(isPlayer) and blizzardHealthbar and blizzardHealthbar.GetStatusBarColor then
+			local nativeR, nativeG, nativeB = blizzardHealthbar:GetStatusBarColor()
+			r = C_CurveUtil.EvaluateColorValueFromBoolean(isPlayer, nativeR, RetailColorValueOrDefault(r, 1))
+			g = C_CurveUtil.EvaluateColorValueFromBoolean(isPlayer, nativeG, RetailColorValueOrDefault(g, 0))
+			b = C_CurveUtil.EvaluateColorValueFromBoolean(isPlayer, nativeB, RetailColorValueOrDefault(b, 0))
+		end
+
+		local classColor = GetRetailClassColor(unit.unitid)
+		if classColor then
+			r, g, b, a = SelectRetailColorByState(isPlayer, classColor, r, g, b, a)
+		end
+
+		-- Enemy color modes must not override the separately configured friendly
+		-- player color. UnitIsEnemy may be protected on Retail, so select the
+		-- result through Blizzard's secret-safe color API instead of branching.
+		local isEnemy = UnitIsEnemy("player", unit.unitid)
+		if IsSecretValue(isEnemy) then
+			r = C_CurveUtil.EvaluateColorValueFromBoolean(isEnemy, RetailColorValueOrDefault(r, 1), RetailColorValueOrDefault(baseR, 1))
+			g = C_CurveUtil.EvaluateColorValueFromBoolean(isEnemy, RetailColorValueOrDefault(g, 0), RetailColorValueOrDefault(baseG, 0))
+			b = C_CurveUtil.EvaluateColorValueFromBoolean(isEnemy, RetailColorValueOrDefault(b, 0), RetailColorValueOrDefault(baseB, 0))
+			a = C_CurveUtil.EvaluateColorValueFromBoolean(isEnemy, RetailColorValueOrDefault(a, 1), RetailColorValueOrDefault(baseA, 1))
+		elseif not isEnemy then
+			r, g, b, a = baseR, baseG, baseB, baseA
+		end
+
+		local _, instanceType = IsInInstance()
+		if instanceType == "arena" then
+			-- Arena nameplate identity is protected on Retail 12.x. Match it against
+			-- Blizzard's public arena unit tokens without branching on the secret result.
+			for i = 1, #RetailArenaUnits do
+				local arenaUnit = RetailArenaUnits[i]
+				local arenaClassColor = GetRetailClassColor(arenaUnit)
+				if arenaClassColor then
+					r, g, b, a = SelectRetailColorByState(UnitIsUnit(unit.unitid, arenaUnit), arenaClassColor, r, g, b, a)
+				end
+			end
+		end
+
+		return r, g, b, RetailColorValueOrDefault(a, 1)
+	end
+
 	-- UpdateIndicator_UnitColor: Update the health bar coloring, if needed
 	function UpdateIndicator_UnitColor()
 		-- Set Health Bar
 		if activetheme.SetHealthbarColor then
-			visual.healthbar:SetAllColors(activetheme.SetHealthbarColor(unit))
+			local r, g, b, a, backdropR, backdropG, backdropB, backdropA = activetheme.SetHealthbarColor(unit)
+			r, g, b, a = ApplyRetailProtectedPlayerColor(r, g, b, a, false)
+			visual.healthbar:SetAllColors(r, g, b, a, backdropR, backdropG, backdropB, backdropA)
 
 		else visual.healthbar:SetStatusBarColor(unit.red, unit.green, unit.blue) end
 
@@ -1679,7 +1832,9 @@ do
 
 		-- Name Color
 		if activetheme.SetNameColor then
-			visual.name:SetTextColor(activetheme.SetNameColor(unit))
+			local r, g, b, a = activetheme.SetNameColor(unit)
+			r, g, b, a = ApplyRetailProtectedPlayerColor(r, g, b, a, true)
+			visual.name:SetTextColor(r, g, b, a)
 		else visual.name:SetTextColor(1,1,1,1) end
 	end
 
@@ -1757,6 +1912,87 @@ do
 
 			UpdateIndicator_UnitColor()
 		end
+	end
+
+	function ApplyCastInterruptibilityVisuals(notInterruptible)
+		local noStopEnabled = style.castnostop and style.castnostop.enabled
+		local borderEnabled = style.castborder and style.castborder.enabled
+
+		if NEATPLATES_IS_RETAIL and IsSecretValue(notInterruptible) and visual.castnostop.SetAlphaFromBoolean then
+			if noStopEnabled then
+				visual.castnostop:Show()
+				visual.castnostop:SetAlphaFromBoolean(notInterruptible, 1, 0)
+			else
+				visual.castnostop:Hide()
+			end
+
+			if borderEnabled then
+				visual.castborder:Show()
+				if noStopEnabled then
+					visual.castborder:SetAlphaFromBoolean(notInterruptible, 0, 1)
+				else
+					visual.castborder:SetAlpha(1)
+				end
+			else
+				visual.castborder:Hide()
+			end
+		elseif noStopEnabled and notInterruptible then
+			visual.castnostop:SetAlpha(1)
+			visual.castnostop:Show()
+			visual.castborder:Hide()
+		elseif borderEnabled then
+			visual.castborder:SetAlpha(1)
+			visual.castnostop:Hide()
+			visual.castborder:Show()
+		else
+			visual.castnostop:Hide()
+			visual.castborder:Hide()
+		end
+	end
+
+	function UpdateCastbarColor(notInterruptible, school)
+		local castBar = extended.visual.castbar
+		local r, g, b, a = 1, 1, 0, 1
+
+		unit.spellIsShielded = false
+		unit.spellInterruptible = true
+		if activetheme.SetCastbarColor then
+			r, g, b, a = activetheme.SetCastbarColor(unit, school)
+			if not (r and g and b and a) then return false end
+		end
+
+		if NEATPLATES_IS_RETAIL and IsSecretValue(notInterruptible)
+			and C_CurveUtil and C_CurveUtil.EvaluateColorValueFromBoolean
+		then
+			local normalR, normalG, normalB, normalA = r, g, b, a
+			local shieldR, shieldG, shieldB, shieldA = 0.65, 0.75, 0.78, normalA
+
+			unit.spellIsShielded = true
+			unit.spellInterruptible = false
+			if activetheme.SetCastbarColor then
+				shieldR, shieldG, shieldB, shieldA = activetheme.SetCastbarColor(unit, school)
+			end
+
+			unit.spellIsShielded = false
+			unit.spellInterruptible = true
+			r = C_CurveUtil.EvaluateColorValueFromBoolean(notInterruptible, shieldR, normalR)
+			g = C_CurveUtil.EvaluateColorValueFromBoolean(notInterruptible, shieldG, normalG)
+			b = C_CurveUtil.EvaluateColorValueFromBoolean(notInterruptible, shieldB, normalB)
+			a = C_CurveUtil.EvaluateColorValueFromBoolean(notInterruptible, shieldA or 1, normalA or 1)
+		else
+			unit.spellIsShielded = notInterruptible and true or false
+			unit.spellInterruptible = not unit.spellIsShielded
+			if activetheme.SetCastbarColor then
+				r, g, b, a = activetheme.SetCastbarColor(unit, school)
+				if not (r and g and b and a) then return false end
+			elseif unit.spellIsShielded then
+				r, g, b = 0.65, 0.75, 0.78
+			end
+		end
+
+		castBar:SetStatusBarColor(r, g, b, a)
+		castBar:SetAlpha(a or 1)
+		return true
 	end
 
 
@@ -1857,10 +2093,7 @@ do
 		unit.interrupted = false
 		unit.interruptLogged = false
 		if NEATPLATES_IS_RETAIL then
-			-- Retail 12.x can return a secret interruptibility value. The plain
-			-- UNIT_SPELLCAST_* events update this state without inspecting it.
-			unit.spellIsShielded = false
-			unit.spellInterruptible = true
+			extended.retailCastNotInterruptible = notInterruptible
 		else
 			unit.spellIsShielded = notInterruptible
 			unit.spellInterruptible = not unit.spellIsShielded
@@ -1886,23 +2119,8 @@ do
 			castBar:SetMinMaxValues(startTime or 0, endTime or 0)
 		end
 
-		local r, g, b, a = 1, 1, 0, 1
-
-		if activetheme.SetCastbarColor then
-			r, g, b, a = activetheme.SetCastbarColor(unit, SpellSchoolByGUID[unit.guid])
-			if not (r and g and b and a) then return end
-		end
-
-		castBar:SetStatusBarColor( r, g, b)
-		castBar:SetAlpha(a or 1)
-
-		if style.castnostop and style.castnostop.enabled and unit.spellIsShielded then
-			visual.castnostop:Show(); visual.castborder:Hide()
-		elseif style.castborder and style.castborder.enabled then
-			visual.castnostop:Hide(); visual.castborder:Show()
-		else
-			visual.castnostop:Hide(); visual.castborder:Hide()
-		end
+		if not UpdateCastbarColor(notInterruptible, SpellSchoolByGUID[unit.guid]) then return end
+		ApplyCastInterruptibilityVisuals(notInterruptible)
 
 		UpdateIndicator_CustomScaleText()
 		UpdateIndicator_CustomAlpha()
@@ -1999,6 +2217,7 @@ do
 
 		unit.isCasting = false
 		unit.interrupted = false
+		extended.retailCastNotInterruptible = nil
 		UpdateIndicator_CustomScaleText()
 		UpdateIndicator_CustomAlpha()
 	end
@@ -2119,19 +2338,9 @@ do
 
 	function OnUpdateCastInterruptibility(plate, notInterruptible)
 		UpdateReferences(plate)
-		unit.spellIsShielded = notInterruptible and true or false
-		unit.spellInterruptible = not unit.spellIsShielded
-
-		if style.castnostop and style.castnostop.enabled and unit.spellIsShielded then
-			visual.castnostop:Show()
-			visual.castborder:Hide()
-		elseif style.castborder and style.castborder.enabled then
-			visual.castnostop:Hide()
-			visual.castborder:Show()
-		else
-			visual.castnostop:Hide()
-			visual.castborder:Hide()
-		end
+		extended.retailCastNotInterruptible = notInterruptible
+		UpdateCastbarColor(notInterruptible, SpellSchoolByGUID[unit.guid])
+		ApplyCastInterruptibilityVisuals(notInterruptible)
 	end
 
 	local function UpdateCustomTarget()

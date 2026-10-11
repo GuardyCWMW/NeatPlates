@@ -5,6 +5,11 @@ local fraction, range, value, barsize, final
 local IS_RETAIL = NEATPLATES_IS_RETAIL
 local RETAIL_STATUSBAR_TEXTURE = "Interface\\Buttons\\WHITE8X8"
 
+local function RetailValueOrDefault(value, default)
+	if issecretvalue and issecretvalue(value) then return value end
+	return value == nil and default or value
+end
+
 local function SetRetailNeutralZone(self)
 	if self.Neutral then self.Neutral:Hide() end
 end
@@ -20,9 +25,18 @@ end
 
 
 local function SetRetailAllColors(self, rBar, gBar, bBar, aBar, rBackdrop, gBackdrop, bBackdrop, aBackdrop)
-	self:SetStatusBarColor(rBar or 1, gBar or 1, bBar or 1, aBar or 1)
-	self.Backdrop:SetVertexColor(rBackdrop or 1, gBackdrop or 1, bBackdrop or 1, aBackdrop or 1)
-	self.Backdrop.color = {r = rBackdrop or 1, g = gBackdrop or 1, b = bBackdrop or 1, a = aBackdrop or 1}
+	rBar = RetailValueOrDefault(rBar, 1)
+	gBar = RetailValueOrDefault(gBar, 1)
+	bBar = RetailValueOrDefault(bBar, 1)
+	aBar = RetailValueOrDefault(aBar, 1)
+	rBackdrop = RetailValueOrDefault(rBackdrop, 1)
+	gBackdrop = RetailValueOrDefault(gBackdrop, 1)
+	bBackdrop = RetailValueOrDefault(bBackdrop, 1)
+	aBackdrop = RetailValueOrDefault(aBackdrop, 1)
+
+	self:SetStatusBarColor(rBar, gBar, bBar, aBar)
+	self.Backdrop:SetVertexColor(rBackdrop, gBackdrop, bBackdrop, aBackdrop)
+	self.Backdrop.color = {r = rBackdrop, g = gBackdrop, b = bBackdrop, a = aBackdrop}
 end
 
 
@@ -57,6 +71,9 @@ local function CreateRetailStatusbar(parent)
 	frame.Orientation = "HORIZONTAL"
 	frame.Left, frame.Right, frame.Top, frame.Bottom = 0, 1, 0, 1
 	frame.Bar = frame:GetStatusBarTexture()
+	if NEATPLATES_IS_FOREVER and frame.Bar and frame.Bar.SetDrawLayer then
+		frame.Bar:SetDrawLayer("BORDER")
+	end
 	frame.Backdrop = frame:CreateTexture(nil, "BACKGROUND")
 	frame.Backdrop:SetAllPoints(frame)
 	frame.Neutral = frame:CreateTexture(nil, "OVERLAY")
@@ -75,6 +92,9 @@ local function CreateRetailStatusbar(parent)
 			nativeSetStatusBarTexture(self, RETAIL_STATUSBAR_TEXTURE)
 		end
 		self.Bar = self:GetStatusBarTexture()
+		if NEATPLATES_IS_FOREVER and self.Bar and self.Bar.SetDrawLayer then
+			self.Bar:SetDrawLayer("BORDER")
+		end
 	end
 
 	frame.SetNeutralZone = SetRetailNeutralZone
