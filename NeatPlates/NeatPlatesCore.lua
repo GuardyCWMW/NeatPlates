@@ -1126,6 +1126,7 @@ do
 		-- For Fading In
 		PlatesFading[plate] = EnableFadeIn
 		extended.requestedAlpha = 0
+		extended.requestedAlphaIsSecret = false
 		--extended.visibleAlpha = 0
 		extended:Hide()		-- Yes, it seems counterintuitive, but...
 		extended:SetAlpha(0)
@@ -1894,23 +1895,40 @@ do
 
 	-- UpdateIndicator_CustomAlpha: Calls the alpha delegate to get the requested alpha
 	function UpdateIndicator_CustomAlpha(event)
+		local alphaIsSecret = false
+
 		if activetheme.SetAlpha then
 			--local previousAlpha = extended.requestedAlpha
-			extended.requestedAlpha = activetheme.SetAlpha(unit) or previousAlpha or unit.alpha or 1
+			local requestedAlpha, isSecret = activetheme.SetAlpha(unit)
+			if isSecret then
+				alphaIsSecret = true
+				extended.requestedAlpha = requestedAlpha
+			else
+				extended.requestedAlpha = requestedAlpha or previousAlpha or unit.alpha or 1
+			end
 		else
 			extended.requestedAlpha = unit.alpha or 1
 		end
 
-		if not OpacityIgnoreBlizzardAlpha then
-			unit.alphaMult = unit.alphaMult or 0
-			extended.requestedAlpha = extended.requestedAlpha * unit.alphaMult
-		end
+		extended.requestedAlphaIsSecret = alphaIsSecret
 
-		extended:SetAlpha(extended.requestedAlpha)
-		if extended.requestedAlpha > 0 then
+		if alphaIsSecret then
+			-- Secret values cannot be multiplied or compared in Lua. The native
+			-- curve already returned the final configured opacity.
+			extended:SetAlpha(extended.requestedAlpha)
 			if nameplate:IsShown() then extended:Show() end
 		else
-			extended:Hide()        -- FRAME HIDE TEST
+			if not OpacityIgnoreBlizzardAlpha then
+				unit.alphaMult = unit.alphaMult or 0
+				extended.requestedAlpha = extended.requestedAlpha * unit.alphaMult
+			end
+
+			extended:SetAlpha(extended.requestedAlpha)
+			if extended.requestedAlpha > 0 then
+				if nameplate:IsShown() then extended:Show() end
+			else
+				extended:Hide()        -- FRAME HIDE TEST
+			end
 		end
 
 		-- Better Layering
@@ -1929,7 +1947,7 @@ do
 	function UpdateIndicator_CustomScaleText()
 		threatborder = visual.threatborder
 
-		if unit.health and (extended.requestedAlpha > 0) then
+		if unit.health and (extended.requestedAlphaIsSecret or extended.requestedAlpha > 0) then
 			-- Scale
 			if activetheme.SetScale then
 				scale = activetheme.SetScale(unit)

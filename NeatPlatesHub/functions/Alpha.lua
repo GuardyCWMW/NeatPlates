@@ -24,7 +24,9 @@ local function DummyFunction() end
 
 -- By Low Health
 local function AlphaFunctionByLowHealth(unit)
-	if unit.health/unit.healthmax < LocalVars.LowHealthThreshold then return LocalVars.OpacitySpotlight end
+	local health, healthmax = unit.health, unit.healthmax
+	if not health or not healthmax or healthmax <= 0 then return end
+	if health/healthmax < LocalVars.LowHealthThreshold then return LocalVars.OpacitySpotlight end
 end
 
 -- By Threat (High)
@@ -144,6 +146,62 @@ local function Diminish(num)
 	else return num * .80 end
 end
 
+------------------------------------------------------------------------------
+-- Low Health Spotlight (clients with secret health values)
+------------------------------------------------------------------------------
+local lowHealthCurve, curveSpotlight, curveNormal, curveThreshold
+
+local function GetLowHealthAlphaCurve(spotlight, normal, threshold)
+	if lowHealthCurve
+		and curveSpotlight == spotlight
+		and curveNormal == normal
+		and curveThreshold == threshold
+	then
+		return lowHealthCurve
+	end
+
+	if not (C_CurveUtil and C_CurveUtil.CreateCurve and Enum and Enum.LuaCurveType) then return end
+
+	local built, curve = pcall(function()
+		local valueCurve = C_CurveUtil.CreateCurve()
+		valueCurve:SetType(Enum.LuaCurveType.Step)
+		valueCurve:AddPoint(0, spotlight)
+		valueCurve:AddPoint(threshold, normal)
+		return valueCurve
+	end)
+	if not built then return end
+
+	lowHealthCurve = curve
+	curveSpotlight = spotlight
+	curveNormal = normal
+	curveThreshold = threshold
+	return lowHealthCurve
+end
+
+-- Returns opacity, isSecret. The opacity must be passed directly to SetAlpha.
+local function GetSecretLowHealthAlpha(unit)
+	if not NEATPLATES_IS_RETAIL or not UnitHealthPercent then return end
+	if not unit or not unit.unitid then return end
+
+	local normal
+	if not UnitExists("target") and LocalVars.OpacityFullNoTarget then
+		normal = Diminish(LocalVars.OpacityTarget)
+	else
+		normal = Diminish(LocalVars.OpacityNonTarget)
+	end
+
+	local curve = GetLowHealthAlphaCurve(
+		Diminish(LocalVars.OpacitySpotlight),
+		normal,
+		LocalVars.LowHealthThreshold or .3)
+	if not curve then return end
+
+	local evaluated, alpha = pcall(UnitHealthPercent, unit.unitid, true, curve)
+	if not evaluated then return end
+
+	return alpha, true
+end
+
 local function AlphaDelegate(...)
 	local unit = ...
 	local alpha
@@ -178,6 +236,11 @@ local function AlphaDelegate(...)
 				func = AlphaFunctionsFriendly[LocalVars.FriendlyAlphaSpotlightMode or NeatPlatesHubDefaults.FriendlyAlphaSpotlightMode] or func
 			else
 				func = AlphaFunctionsEnemy[LocalVars.EnemyAlphaSpotlightMode or NeatPlatesHubDefaults.EnemyAlphaSpotlightMode] or func
+			end
+
+			if func == AlphaFunctionByLowHealth then
+				local secretAlpha, isSecret = GetSecretLowHealthAlpha(unit)
+				if isSecret then return secretAlpha, true end
 			end
 
 			alpha = func(...)
