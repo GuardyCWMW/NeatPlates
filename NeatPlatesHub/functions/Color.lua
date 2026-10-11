@@ -96,6 +96,13 @@ local function DummyFunction() return end
 
 -- By Low Health
 local function ColorFunctionByHealth(unit)
+	-- Modern clients can protect raw health values. Let Blizzard evaluate the
+	-- configured thresholds and return a color that can be passed to UI sinks.
+	if NEATPLATES_IS_RETAIL then
+		local curveColor = GetRetailHealthTextColor(unit)
+		if curveColor then return curveColor end
+	end
+
 	local health = GetHealthFraction(unit)
 	if health > LocalVars.HighHealthThreshold then return LocalVars.ColorHighHealth
 	elseif health > LocalVars.LowHealthThreshold then return LocalVars.ColorMediumHealth
