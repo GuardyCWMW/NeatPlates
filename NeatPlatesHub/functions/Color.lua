@@ -251,24 +251,35 @@ AddHubFunction(FriendlyBarFunctions, NeatPlatesHubMenus.FriendlyBarModes, ColorF
 
 
 ------------------
+local raidIconTable = {
+	[1] = "STAR",
+	[2] = "CIRCLE",
+	[3] = "DIAMOND",
+	[4] = "TRIANGLE",
+	[5] = "MOON",
+	[6] = "SQUARE",
+	[7] = "CROSS",
+	[8] = "SKULL"
+}
+
+local customColorSource, customColorLines = nil, {}
+local function GetCustomColorLines()
+	local source = LocalVars.CustomColorList or ""
+	if customColorSource ~= source then
+		customColorSource = source
+		customColorLines = { strsplit("\n", source) }
+	end
+	return customColorLines
+end
+
 local function CustomColorDelegate(unit)
 	-- Functions is a bit messy because it attempts to use the order of items as a priority...
 	local color, aura, threshold, current, lowest
 	local health = (unit.health/unit.healthmax)*100
-	local raidIconTable = {
-		[1] = "STAR",
-		[2] = "CIRCLE",
-		[3] = "DIAMOND",
-		[4] = "TRIANGLE",
-		[5] = "MOON",
-		[6] = "SQUARE",
-		[7] = "CROSS",
-		[8] = "SKULL"
-	}
 
 	if NeatPlatesWidgets.AuraCache then aura = NeatPlatesWidgets.AuraCache[unit.unitid] end
 
-	local temp = {strsplit("\n", LocalVars.CustomColorList)}
+	local temp = GetCustomColorLines()
 	for index=1, #temp do
 		local key = select(3, string.find(temp[index], "#%x+[%s]*(.*)"))
 		local raidIconId = select(3, string.find(key or "", "{rt(%d)}"))

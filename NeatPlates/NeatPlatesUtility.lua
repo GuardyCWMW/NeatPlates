@@ -2055,6 +2055,7 @@ NeatPlatesUtility.SetupClassColors = SetupClassColors
 -- Simple Debounce
 local throttleAmount = 0 --in milliseconds
 local throttles = {}
+local throttleRunners = {}
 local function SimpleThrottle(key, callback)
 	if throttles[key] ~= nil then
 		return
@@ -2062,10 +2063,18 @@ local function SimpleThrottle(key, callback)
 
 	-- Setup throttle
 	throttles[key] = callback
-	C_Timer.After(throttleAmount / 1000, function()
-		throttles[key]()
-		throttles[key] = nil
-	end);
+
+	local runner = throttleRunners[key]
+	if not runner then
+		runner = function()
+			local pending = throttles[key]
+			throttles[key] = nil
+			if pending then pending() end
+		end
+		throttleRunners[key] = runner
+	end
+
+	C_Timer.After(throttleAmount / 1000, runner);
 end
 NeatPlatesUtility.SimpleThrottle = SimpleThrottle
 NeatPlatesUtility.SetThrottle = function(amount) throttleAmount = amount or 0 end

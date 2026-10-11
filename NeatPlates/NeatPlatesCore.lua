@@ -152,25 +152,45 @@ local function GetNameplateAnchorFrame(plate)
 	return plate and plate.UnitFrame or plate
 end
 
-local function SetBlizzardUnitFrameVisualAlpha(frame, alpha)
-	if not frame then return end
-
-	frame:SetAlpha(alpha)
-
-	for i = 1, select("#", frame:GetRegions()) do
-		local region = select(i, frame:GetRegions())
+local function SetBlizzardUnitFrameVisualAlphaOnRegions(alpha, ...)
+	for i = 1, select("#", ...) do
+		local region = select(i, ...)
 		if region and region.SetAlpha then
 			region:SetAlpha(alpha)
 		end
 	end
+end
 
-	for i = 1, select("#", frame:GetChildren()) do
-		local child = select(i, frame:GetChildren())
-		SetBlizzardUnitFrameVisualAlpha(child, alpha)
+local SetBlizzardUnitFrameVisualAlpha
+
+local function SetBlizzardUnitFrameVisualAlphaOnChildren(alpha, ...)
+	for i = 1, select("#", ...) do
+		SetBlizzardUnitFrameVisualAlpha(select(i, ...), alpha)
 	end
 end
 
-local function KeepBlizzardUnitFrameAsAnchor(unitFrame)
+function SetBlizzardUnitFrameVisualAlpha(frame, alpha)
+	if not frame then return end
+
+	frame:SetAlpha(alpha)
+	SetBlizzardUnitFrameVisualAlphaOnRegions(alpha, frame:GetRegions())
+	SetBlizzardUnitFrameVisualAlphaOnChildren(alpha, frame:GetChildren())
+end
+
+-- Parent alpha hides the normal subtree. Only repeat the expensive deep walk
+-- when the requested visibility changes or Blizzard has rebuilt the plate.
+local BlizzardUnitFrameAlpha = setmetatable({}, { __mode = "k" })
+
+local function ApplyBlizzardUnitFrameVisualAlpha(unitFrame, alpha, force)
+	unitFrame:SetAlpha(alpha)
+
+	if force or BlizzardUnitFrameAlpha[unitFrame] ~= alpha then
+		BlizzardUnitFrameAlpha[unitFrame] = alpha
+		SetBlizzardUnitFrameVisualAlpha(unitFrame, alpha)
+	end
+end
+
+local function KeepBlizzardUnitFrameAsAnchor(unitFrame, force)
 	if not unitFrame then return end
 
 	-- Forever's target highlight ignores its parent alpha by default and can
@@ -180,10 +200,10 @@ local function KeepBlizzardUnitFrameAsAnchor(unitFrame)
 	end
 
 	unitFrame:Show()
-	SetBlizzardUnitFrameVisualAlpha(unitFrame, 0)
+	ApplyBlizzardUnitFrameVisualAlpha(unitFrame, 0, force)
 end
 
-local function ShowBlizzardUnitFrame(unitFrame)
+local function ShowBlizzardUnitFrame(unitFrame, force)
 	if not unitFrame then return end
 
 	if NEATPLATES_IS_FOREVER and unitFrame.selectionHighlight and unitFrame.selectionHighlight.SetIgnoreParentAlpha then
@@ -191,7 +211,7 @@ local function ShowBlizzardUnitFrame(unitFrame)
 	end
 
 	unitFrame:Show()
-	SetBlizzardUnitFrameVisualAlpha(unitFrame, 1)
+	ApplyBlizzardUnitFrameVisualAlpha(unitFrame, 1, force)
 end
 
 -- Internal Data
@@ -453,7 +473,7 @@ local ApplyCastInterruptibilityVisuals, UpdateCastbarColor
 
 -- Event Functions
 local OnShowNameplate, OnHideNameplate, OnUpdateNameplate, OnResetNameplate
-local OnHealthUpdate, UpdateUnitCondition
+local OnHealthUpdate, UpdateUnitCondition, OnAlphaUpdate
 local UpdateUnitContext, OnRequestWidgetUpdate, OnRequestDelegateUpdate
 local UpdateUnitIdentity
 
@@ -628,9 +648,9 @@ do
 		return false
 	end
 
-	function ShouldShowBlizzardPlate(plate)
+	function ShouldShowBlizzardPlate(plate, force)
 		if DisplayingBlizzardPlate(plate) then
-			ShowBlizzardUnitFrame(plate.UnitFrame)
+			ShowBlizzardUnitFrame(plate.UnitFrame, force)
 			plate.extended:Hide()
 
 			-- -- Re-register unitframe events, if needed (Note: This can cause taint, so disabled for now)
@@ -639,7 +659,7 @@ do
 			-- 	CompactUnitFrame_UpdateUnitEvents(plate.UnitFrame)
 			-- end
 		elseif plate.UnitFrame then
-			KeepBlizzardUnitFrameAsAnchor(plate.UnitFrame)
+			KeepBlizzardUnitFrameAsAnchor(plate.UnitFrame, force)
 		end
 	end
 
@@ -662,8 +682,13 @@ do
 
 			-- CVar integrations
 			if NeatPlatesOptions.BlizzardScaling then carrier:SetScale(plate:GetScale()) end	-- Scale the carrier to allow for certain CVars that control scale to function properly.
-			if plate.extended.unit.alphaMult ~= plate:GetAlpha() then
-				UpdateHealth = true
+			local blizzardAlpha = plate:GetAlpha()
+			if IsSecretValue(blizzardAlpha) then blizzardAlpha = 1 end
+			if extended.unit.alphaMult ~= blizzardAlpha then
+				extended.unit.alphaMult = blizzardAlpha
+				if not UpdateMe and not UpdateHealth and extended.Active then
+					OnAlphaUpdate(plate)
+				end
 			end
 
 			-- Check for an Update Request
@@ -677,14 +702,22 @@ do
 					end
 					plate.initialize = false
 				else
+					if plate.throttleUnitid ~= unitid then
+						plate.throttleUnitid = unitid
+						plate.throttleHealthKey = "NeatPlatesCore_OnUpdate_Health"..unitid
+						plate.throttlePlateKey = "NeatPlatesCore_OnUpdate_Plate"..unitid
+					end
+
 					if not UpdateMe then
-						NeatPlatesUtility.SimpleThrottle('NeatPlatesCore_OnUpdate_Health'..unitid, function()
-							OnHealthUpdate(plate)
-						end)
+						if not plate.throttledHealthUpdate then
+							plate.throttledHealthUpdate = function() OnHealthUpdate(plate) end
+						end
+						NeatPlatesUtility.SimpleThrottle(plate.throttleHealthKey, plate.throttledHealthUpdate)
 					else
-						NeatPlatesUtility.SimpleThrottle('NeatPlatesCore_OnUpdate_Plate'..unitid, function()
-							OnUpdateNameplate(plate)
-						end)
+						if not plate.throttledPlateUpdate then
+							plate.throttledPlateUpdate = function() OnUpdateNameplate(plate) end
+						end
+						NeatPlatesUtility.SimpleThrottle(plate.throttlePlateKey, plate.throttledPlateUpdate)
 					end
 				end
 				plate.UpdateMe = false
@@ -1177,6 +1210,15 @@ do
 		UpdateUnitCondition(plate, unitid)
 		ProcessUnitChanges(true)
 		--UpdateIndicator_HealthBar()		-- Just to be on the safe side
+	end
+
+	-- Blizzard continuously adjusts plate alpha for distance and occlusion.
+	-- Reapply only NeatPlates opacity instead of refreshing unit data and widgets.
+	function OnAlphaUpdate(plate)
+		if not PlatesVisible[plate] then return end
+
+		UpdateReferences(plate)
+		if style then UpdateIndicator_CustomAlpha() end
 	end
 
      -- OnResetNameplate
@@ -2305,7 +2347,7 @@ do
 		if plate then
 			if UnitIsUnit("player", unitid) or UnitIsUnit("softinteract", unitid) then
 				plate.showBlizzardPlate = true
-				ShouldShowBlizzardPlate(plate)
+				ShouldShowBlizzardPlate(plate, true)
 				OnHideNameplate(plate, unitid)
 			else
 				plate.showBlizzardPlate = MustDisplayBlizzardPlate(unitid)
@@ -2317,7 +2359,7 @@ do
 				-- Keep Blizzard's UnitFrame alive: MoP Classic uses it as the moving
 				-- stacking/spreading anchor even when NeatPlates draws the visible plate.
 				if plate.UnitFrame and not plate.showBlizzardPlate then
-					KeepBlizzardUnitFrameAsAnchor(plate.UnitFrame)
+					KeepBlizzardUnitFrameAsAnchor(plate.UnitFrame, true)
 				end
 
 		 		OnShowNameplate(plate, unitid)
