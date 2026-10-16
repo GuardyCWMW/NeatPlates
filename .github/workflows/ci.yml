@@ -1,0 +1,105 @@
+name: CI
+
+# Static validation for pull requests. Requires no secrets: everything here
+# runs on the checkout alone, so forks and first-time contributors get the
+# same feedback maintainers do.
+#
+# CI cannot emulate Blizzard's protected UI, secret values, or any client
+# flavor. A green run means "nothing structurally broken", not "works in game".
+# Manual in-game smoke checks are still required; see AGENTS.md.
+
+on:
+  pull_request:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  manifests:
+    name: TOC / XML integrity
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      # Checks that every file a loadable TOC or XML include references exists
+      # with matching case, that sibling flavor manifests agree, and that the
+      # version keyword is in place. Case bugs are invisible on Windows but
+      # break WoW on Linux and macOS.
+      - name: Validate addon manifests
+        run: python tools/validate_addon.py --github
+
+  lua-syntax:
+    name: Lua 5.1 syntax
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Lua 5.1
+        run: sudo apt-get update && sudo apt-get install -y lua5.1
+
+      # WoW runs Lua 5.1, so a parse failure here is a guaranteed in-game
+      # error. Vendored libraries are excluded from project policy.
+      - name: Parse every project Lua file
+        run: |
+          set -euo pipefail
+          failed=0
+          while IFS= read -r -d '' file; do
+            if ! luac5.1 -p "$file" 2> /tmp/err; then
+              echo "::error file=${file}::$(head -n1 /tmp/err)"
+              failed=1
+            fi
+          done < <(find . -name '*.lua' -not -path './NeatPlates/libs/*' -not -path './.git/*' -print0)
+          exit $failed
+
+  luacheck:
+    name: Luacheck (advisory)
+    runs-on: ubuntu-latest
+    # Non-blocking while the legacy warning backlog is worked down. Keep new and
+    # changed code clean; flip this to blocking once the baseline is quiet.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install luacheck
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y lua5.1 luarocks
+          sudo luarocks install luacheck
+
+      - name: Run luacheck
+        run: luacheck . --formatter plain --codes --ranges || true
+
+  package:
+    name: Build package (no upload)
+    runs-on: ubuntu-latest
+    steps:
+      # Full history and tags: the packager derives the version from the
+      # nearest tag, which is what replaces @project-version@ in the TOCs.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # "-d" skips every upload, so no credentials are involved.
+      - name: Build addon zip
+        uses: BigWigsMods/packager@v2
+        with:
+          args: -d
+
+      - name: Upload build for review
+        uses: actions/upload-artifact@v4
+        with:
+          name: neatplates-package
+          path: .release/*.zip
+          if-no-files-found: error
+          retention-days: 14

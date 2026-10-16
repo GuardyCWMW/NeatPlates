@@ -3,7 +3,7 @@
 ## IconTexture: Interface\AddOns\NeatPlates\Media\NeatPlatesIcon.tga
 ## Notes: Community Edition - Maintained by guardycmw
 ## Author: Luxocracy and friends
-## Version: v468
+## Version: @project-version@
 ## SavedVariables: NeatPlatesSettings
 ## SavedVariablesPerCharacter: NeatPlatesOptions
 

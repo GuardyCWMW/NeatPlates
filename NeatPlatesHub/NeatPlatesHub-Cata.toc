@@ -3,6 +3,7 @@
 ## IconTexture: Interface\AddOns\NeatPlates\Media\NeatPlatesIcon.tga
 ## Notes: Provides a common configuration panel for supported themes.
 ## Author: Luxocracy and friends
+## Version: @project-version@
 ## Dependencies: NeatPlates, NeatPlatesWidgets
 ## OptionalDeps: NeatPlatesHubDE, NeatPlatesHubES, NeatPlatesHubMX, NeatPlatesHubFR, NeatPlatesHubKR, NeatPlatesHubRU, NeatPlatesHubCN, NeatPlatesHubTW
 ## SavedVariables: NeatPlatesHubSettings

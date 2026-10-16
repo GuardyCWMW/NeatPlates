@@ -3,6 +3,7 @@
 ## IconTexture: Interface\AddOns\NeatPlates\Media\NeatPlatesIcon.tga
 ## Notes: Minimalisty
 ## Author: Binny
+## Version: @project-version@
 ## Dependencies: NeatPlates, NeatPlatesHub
 
 Graphite.lua

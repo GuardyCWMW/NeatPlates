@@ -3,6 +3,7 @@
 ## IconTexture: Interface\AddOns\NeatPlates\Media\NeatPlatesIcon.tga
 ## Notes: Vanilla-Style Plates.
 ## Author: delabarra
+## Version: @project-version@
 ## Dependencies: NeatPlates, NeatPlatesHub
 
 NeatPlates_ClassicPlates.lua

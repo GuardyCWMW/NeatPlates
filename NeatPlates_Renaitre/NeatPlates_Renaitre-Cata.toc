@@ -1,7 +1,7 @@
 ## Interface: 40402
 ## Title: NeatPlates:|cffa335ee Renaitre|r
 ## IconTexture: Interface\AddOns\NeatPlates\Media\NeatPlatesIcon.tga
-## Version: v7.0.3
+## Version: @project-version@
 ## Notes: Renaitre's custom nameplates.
 ## Author: Renaitre
 ## Credits: Binbwen

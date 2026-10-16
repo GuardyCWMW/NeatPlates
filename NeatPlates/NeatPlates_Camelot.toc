@@ -3,7 +3,7 @@
 ## IconTexture: Interface\AddOns\NeatPlates\Media\NeatPlatesIcon.tga
 ## Notes: Community Edition for World of Warcraft: Forever - Maintained by guardycmw
 ## Author: guardycmw (original by Luxocracy and friends)
-## Version: v468-ce7.5.1
+## Version: @project-version@
 ## SavedVariables: NeatPlatesSettings
 ## SavedVariablesPerCharacter: NeatPlatesOptions
 

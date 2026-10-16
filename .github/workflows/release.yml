@@ -1,0 +1,86 @@
+name: Release
+
+# Tag-driven release. Safe to merge before any secrets exist:
+#
+#   * With no CF_API_TOKEN configured, this builds the package, attaches it to
+#     the GitHub Release, and SKIPS the CurseForge upload. Nothing fails.
+#   * Once the maintainer adds CF_API_TOKEN (and optionally WOWI/WAGO tokens)
+#     in Settings > Secrets and variables > Actions, the same workflow starts
+#     publishing with no edits required.
+#
+# Before the first real release, also add the CurseForge project id to the core
+# TOC files as "## X-Curse-Project-ID: <id>" so uploads land on the right page.
+#
+# Tag naming drives the version stamped into every TOC via @project-version@,
+# e.g. `git tag -a v468-ce7.6 -m "v468-ce7.6" && git push origin v468-ce7.6`.
+# Use an annotated tag: the packager ignores lightweight ones for versioning.
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Build only, never upload'
+        type: boolean
+        default: true
+
+permissions:
+  contents: write  # required to create the GitHub Release
+
+jobs:
+  release:
+    name: Package and publish
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # Re-run the same structural checks as CI. A tag can point at a commit
+      # that never went through a pull request, so do not assume it was gated.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Validate addon manifests
+        run: python tools/validate_addon.py --github
+
+      # Decide whether this run is allowed to upload. Secrets are not available
+      # to workflows triggered from forks, and may simply not be configured yet.
+      - name: Determine release mode
+        id: mode
+        env:
+          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+        run: |
+          if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
+            echo "args=-d" >> "$GITHUB_OUTPUT"
+            echo "::notice::Manual dry run - building only, no upload."
+          elif [ -z "${CF_API_TOKEN}" ]; then
+            echo "args=-d" >> "$GITHUB_OUTPUT"
+            echo "::notice::No CF_API_TOKEN configured - building and attaching to the GitHub Release only."
+          else
+            echo "args=" >> "$GITHUB_OUTPUT"
+            echo "::notice::Publishing to configured distribution channels."
+          fi
+
+      - name: Build and release
+        uses: BigWigsMods/packager@v2
+        with:
+          args: ${{ steps.mode.outputs.args }}
+        env:
+          # GITHUB_TOKEN is always present, so the zip is attached to the
+          # GitHub Release even with no third-party credentials configured.
+          GH_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          WOWI_API_TOKEN: ${{ secrets.WOWI_API_TOKEN }}
+          WAGO_API_TOKEN: ${{ secrets.WAGO_API_TOKEN }}
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: neatplates-release
+          path: .release/*.zip
+          if-no-files-found: error
+          retention-days: 90

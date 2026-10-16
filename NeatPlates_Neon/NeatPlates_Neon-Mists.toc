@@ -3,6 +3,7 @@
 ## IconTexture: Interface\AddOns\NeatPlates\Media\NeatPlatesIcon.tga
 ## Notes: It toasts your Eggo waffles, and butters your bread.
 ## Author: Binny
+## Version: @project-version@
 ## Dependencies: NeatPlates, NeatPlatesHub
 
 Neon.lua

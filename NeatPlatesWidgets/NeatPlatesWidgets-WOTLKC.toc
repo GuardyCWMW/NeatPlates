@@ -2,6 +2,7 @@
 ## Title: NeatPlates Widgets
 ## IconTexture: Interface\AddOns\NeatPlates\Media\NeatPlatesIcon.tga
 ## Notes: Library of Widgets
+## Version: @project-version@
 ## Dependencies: NeatPlates
 
 Widgets.xml

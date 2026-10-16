@@ -1,0 +1,58 @@
+# Packaging recipe for BigWigsMods/packager (release.sh).
+#
+# This repository ships 15 sibling addon folders. release.sh first copies the
+# checkout into ".release/NeatPlates/", then move-folders lifts each addon up to
+# the archive root so players extract siblings into Interface\AddOns, matching
+# the layout documented in README.md.
+#
+# Libraries are vendored under NeatPlates/libs and are deliberately NOT listed
+# as externals: packaging must not fetch over the reviewed in-repo copies.
+# Record library sources and revisions in focused commits instead.
+
+package-as: NeatPlates
+
+# Copies the repository LICENSE into every packaged addon folder, so each one
+# carries its attribution and MIT notice independently of the others.
+license-output: LICENSE
+
+# Vendored libs are already in the checkout, so a "nolib" build would ship a
+# broken addon.
+enable-nolib-creation: no
+
+# Each TOC carries its own explicit flavor, so no TOC splitting is needed.
+enable-toc-creation: no
+
+manual-changelog:
+    filename: NeatPlates/CHANGELOG.md
+    markup-type: markdown
+
+changelog-title: NeatPlates Community Edition
+
+# Development-only files are excluded from the player download. LICENSE is kept:
+# release.sh copies it into each moved addon folder to preserve attribution.
+ignore:
+    - .editorconfig
+    - .gitattributes
+    - .github
+    - .luacheckrc
+    - AGENTS.md
+    - CLAUDE.md
+    - README.md
+    - tools
+
+move-folders:
+    NeatPlates/NeatPlates: NeatPlates
+    NeatPlates/NeatPlatesHub: NeatPlatesHub
+    NeatPlates/NeatPlatesWidgets: NeatPlatesWidgets
+    NeatPlates/NeatPlates_Alvara: NeatPlates_Alvara
+    NeatPlates/NeatPlates_BlizzardPlates: NeatPlates_BlizzardPlates
+    NeatPlates/NeatPlates_ClassicPlates: NeatPlates_ClassicPlates
+    NeatPlates/NeatPlates_Graphite: NeatPlates_Graphite
+    NeatPlates/NeatPlates_Grey: NeatPlates_Grey
+    NeatPlates/NeatPlates_Neon: NeatPlates_Neon
+    NeatPlates/NeatPlates_Quatre: NeatPlates_Quatre
+    NeatPlates/NeatPlates_Renaitre: NeatPlates_Renaitre
+    NeatPlates/NeatPlates_Roth: NeatPlates_Roth
+    NeatPlates/NeatPlates_Simple: NeatPlates_Simple
+    NeatPlates/NeatPlates_Slim_Horizontal: NeatPlates_Slim_Horizontal
+    NeatPlates/NeatPlates_Slim_Vertical: NeatPlates_Slim_Vertical
