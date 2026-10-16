@@ -23,6 +23,7 @@
 	<Script file="AuraWidget-Mainline.lua"/>
 	<Script file="TotemIconWidget.lua"/>
 	<Script file="QuestWidget.lua"/>
+	<Script file="ThreatPercentageWidget.lua"/>
 	<Script file="ArenaWidget.lua"/>
 	<Script file="ResourceWidget.lua"/>
 

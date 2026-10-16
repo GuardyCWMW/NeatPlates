@@ -896,6 +896,7 @@ local function NameplateEventHandler(self, event, ...)
 	or event == "UNIT_POWER_UPDATE"
 	or event == "UNIT_LEVEL"
 	or event == "UNIT_FACTION"
+	or event == "UNIT_THREAT_LIST_UPDATE"
 	or event == "UNIT_THREAT_SITUATION_UPDATE"
 	then
 		OnHealthUpdate(self)
@@ -993,6 +994,9 @@ local function RegisterNameplateEvents(plate, unitid)
 	eventFrame:RegisterUnitEvent("UNIT_TARGET", unitid)
 	eventFrame:RegisterUnitEvent("UNIT_LEVEL", unitid)
 	eventFrame:RegisterUnitEvent("UNIT_FACTION", unitid)
+	if NEATPLATES_IS_RETAIL then
+		eventFrame:RegisterUnitEvent("UNIT_THREAT_LIST_UPDATE", unitid)
+	end
 	eventFrame:RegisterUnitEvent("UNIT_THREAT_SITUATION_UPDATE", unitid)
 	eventFrame:RegisterUnitEvent("UNIT_SPELLCAST_START", unitid)
 	eventFrame:RegisterUnitEvent("UNIT_SPELLCAST_STOP", unitid)

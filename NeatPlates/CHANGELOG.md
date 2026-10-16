@@ -1,5 +1,22 @@
 # NeatPlates
 
+## v468-ce7.5.1
+
+- Added a project-level MIT license with attribution for the original NeatPlates and Tidy Plates projects.
+- Added an updated README covering supported WoW versions, configuration, credits, licensing, and repository information.
+
+## v468-ce7.5
+
+- Restored the Threat Percentage widget on Retail and Forever using the modern `UnitDetailedThreatSituation` API.
+- Added secret-safe threat percentage rendering without inspecting or transforming protected combat values in Lua.
+- Kept the existing threat percentage implementation unchanged for Classic, TBC, and Mists of Pandaria clients.
+
+## v468-ce7.4
+
+- Optimized critical nameplate update paths by avoiding redundant Blizzard frame traversal, full refreshes for alpha-only changes, repeated callback allocation, and repeated custom-color parsing.
+- Added secret-safe health-based coloring for Retail and Forever using Blizzard's supported curve APIs.
+- Added secret-safe low-health opacity highlighting for Retail and Forever, passing protected opacity values directly to the UI without inspecting them in Lua.
+
 ## v468-ce5
 
 - Added a dedicated Stacking Nameplates section to the main NeatPlates options panel.

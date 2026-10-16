@@ -669,9 +669,8 @@ local function OnInitializeWidgets(extended, configTable)
 	end
 	if NEATPLATES_IS_RETAIL then
 		-- These legacy widgets calculate or compare restricted combat values.
-		-- Core threat coloring remains available through UnitThreatSituation.
+		-- The percentage widget has a dedicated secret-safe Retail path.
 		EnableThreatWidget = false
-		EnableThreatPercentageWidget = false
 		EnableRangeWidget = false
 	end
 
@@ -746,6 +745,10 @@ end
 
 local function OnUpdateDelegate(extended, unit)
 	local widgets = extended.widgets
+
+	if NEATPLATES_IS_RETAIL and LocalVars.WidgetThreatPercentage and widgets.ThreatPercentageWidgetHub then
+		widgets.ThreatPercentageWidgetHub:Update(unit)
+	end
 
 	if widgets.ClassWidgetHub and ( (LocalVars.ClassEnemyIcon and unit.reaction ~= "FRIENDLY") or (LocalVars.ClassPartyIcon and unit.reaction == "FRIENDLY")) then
 		widgets.ClassWidgetHub:Update(unit, LocalVars.ClassPartyIcon)
