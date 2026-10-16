@@ -1,0 +1,116 @@
+name: Bug report
+description: Report incorrect or broken behavior in NeatPlates Community Edition.
+labels: ["bug", "needs triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping improve NeatPlates CE.
+
+        Please search [existing issues](https://github.com/GuardyCWMW/NeatPlates/issues)
+        first. Report issues with **Community Edition** here, not on the
+        original NeatPlates tracker.
+
+  - type: dropdown
+    id: client
+    attributes:
+      label: WoW client
+      description: Which client did this happen on?
+      options:
+        - "Forever"
+        - "Retail"
+        - "MoP Classic"
+        - "TBC Anniversary"
+        - "Classic Era"
+        - "Other / not listed"
+    validations:
+      required: true
+
+  - type: input
+    id: build
+    attributes:
+      label: Client version / build
+      description: Shown at the bottom of the character select screen, e.g. "5.5.4 (60123)".
+    validations:
+      required: true
+
+  - type: input
+    id: addon_version
+    attributes:
+      label: NeatPlates CE version
+      description: From the in-game AddOns list, e.g. "v468-ce7.5.1".
+    validations:
+      required: true
+
+  - type: input
+    id: theme
+    attributes:
+      label: Active theme
+      description: e.g. Neon, Graphite, Grey, Quatre.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Target a hostile nameplate
+        2. Enter combat
+        3. ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: Screenshots are very helpful for visual issues.
+    validations:
+      required: true
+
+  - type: textarea
+    id: lua_error
+    attributes:
+      label: Lua error (if any)
+      description: >
+        Paste the full error. BugSack or `/console scriptErrors 1` will surface
+        errors that are otherwise hidden.
+      render: text
+
+  - type: dropdown
+    id: combat
+    attributes:
+      label: Does it happen in combat?
+      description: >
+        Modern clients restrict data and protected actions during combat, so
+        this materially changes where we look.
+      options:
+        - "Only in combat"
+        - "Only out of combat"
+        - "Both"
+        - "Not sure"
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: isolation
+    attributes:
+      label: Isolation checks
+      options:
+        - label: It still happens with all other addons disabled.
+        - label: It still happens after `/reload`.
+        - label: It still happens with a fresh profile.
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Anything else?
+      description: Relevant settings, when it started, or a working older version.
