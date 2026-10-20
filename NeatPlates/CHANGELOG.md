@@ -1,5 +1,10 @@
 # NeatPlates
 
+## Unreleased
+
+- Centered Forever's adjustable click area on the theme's health bar instead of the underlying Blizzard frame, preserving saved dimensions and stable bounds during hover enlargement. Name-only plates retain their previous placement.
+- Fixed Forever nameplate clicking and mouseover areas using the client's per-plate hit-test API instead of unavailable legacy sizing APIs. Clickable width/height, display offsets, and friendly/enemy click-through now apply to the real hitbox, independently of target/mouseover enlargement; the green preview follows those bounds.
+
 ## v468-ce7.5.1
 
 - Added a project-level MIT license with attribution for the original NeatPlates and Tidy Plates projects.

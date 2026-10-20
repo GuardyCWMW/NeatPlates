@@ -235,6 +235,7 @@ local ShowSpellTarget = false
 local ThreatSoloEnable = true
 local ReplaceUnitNameArenaID = false
 local OpacityIgnoreBlizzardAlpha = false
+local FriendlyClickThrough, EnemyClickThrough = false, false
 local ForceDefaultNameplates = {}
 local EMPTY_TEXTURE = "Interface\\Addons\\NeatPlates\\Media\\Empty"
 local ResetPlates, UpdateAll, UpdateAllHealth = false, false, false
@@ -514,6 +515,7 @@ local function toggleNeatPlatesTarget(show, ...)
 end
 
 -- UpdateNameplateSize
+local UpdateNameplateHitTest
 local function UpdateNameplateSize(plate, show, cWidth, cHeight)
 	-- Needs return and timer or size will be set incorrectly on startup, no idea why...
 	if not plate then return end
@@ -552,11 +554,22 @@ local function UpdateNameplateSize(plate, show, cWidth, cHeight)
 
 			plate.carrier:ClearAllPoints()
 			plate.carrier:SetPoint("CENTER", anchorFrame, "CENTER", hitbox.x + offsetX, hitbox.y + offsetY)	-- Offset
-			plate.extended.visual.hitbox:SetPoint("CENTER", anchorFrame)
-			plate.extended.visual.hitbox:SetWidth(hitbox.width)
-			plate.extended.visual.hitbox:SetHeight(hitbox.height)
+			local hitTestFrame = plate.neatPlatesHitTestFrame
+			if hitTestFrame then
+				hitTestFrame.width = hitbox.width * scaleStandard
+				hitTestFrame.height = hitbox.height * scaleStandard
+				hitTestFrame.offsetX, hitTestFrame.offsetY = hitbox.x + offsetX, hitbox.y + offsetY
+				hitTestFrame.standardScale = scaleStandard
+				hitTestFrame.preview = show
+				hitTestFrame.mode = nil
+				UpdateNameplateHitTest(plate)
+			else
+				plate.extended.visual.hitbox:SetPoint("CENTER", anchorFrame)
+				plate.extended.visual.hitbox:SetWidth(hitbox.width)
+				plate.extended.visual.hitbox:SetHeight(hitbox.height)
 
-			if show then plate.extended.visual.hitbox:Show() else plate.extended.visual.hitbox:Hide() end
+				if show then plate.extended.visual.hitbox:Show() else plate.extended.visual.hitbox:Hide() end
+			end
 		end
 
 	end)
@@ -575,6 +588,78 @@ function DisplayingBlizzardPlate(plate)
 	end
 
 	return false
+end
+
+local function GetAnchorDirection(anchor)
+	local x, y = 0, 0
+	if anchor:find("LEFT") then x = -0.5 elseif anchor:find("RIGHT") then x = 0.5 end
+	if anchor:find("BOTTOM") then y = -0.5 elseif anchor:find("TOP") then y = 0.5 end
+	return x, y
+end
+
+local function GetHealthbarHitTestOffset(plate, hitTestFrame)
+	local plateStyle = plate.extended.style
+	if plate.extended.stylename == "NameOnly" then
+		return tonumber(NeatPlatesOptions.NameplateStackingOffsetX) or 0,
+			tonumber(NeatPlatesOptions.NameplateStackingOffsetY) or 0
+	end
+
+	local frame, bar = plateStyle.frame, plateStyle.healthbar
+	local frameX, frameY = GetAnchorDirection(frame.anchor or "CENTER")
+	local barX, barY = GetAnchorDirection(bar.anchor or "CENTER")
+	local width, height = frame.width or 128, frame.height or 16
+	local scale = hitTestFrame.standardScale
+	-- Reconstruct the normal-scale bar center in the native hierarchy rather
+	-- than anchoring to the animated visual frame (which destabilizes mouseover).
+	local x = frameX * plate.carrier:GetWidth()
+		+ scale * ((frame.x or 0) - frameX * width + barX * (width - (bar.width or 128)) + (bar.x or 0))
+	local y = frameY * plate.carrier:GetHeight()
+		+ scale * ((frame.y or 0) - frameY * height + barY * (height - (bar.height or 16)) + (bar.y or 0))
+	return hitTestFrame.offsetX + x, hitTestFrame.offsetY + y
+end
+
+function UpdateNameplateHitTest(plate)
+	local hitTestFrame = plate.neatPlatesHitTestFrame
+	if not hitTestFrame or not hitTestFrame.width then return end
+
+	local unit = plate.extended.unit
+	if not unit.unitid or not unit.reaction then return end
+
+	local isFriendly = unit.reaction == "FRIENDLY"
+	local clickThrough = (isFriendly and FriendlyClickThrough) or (not isFriendly and EnemyClickThrough)
+	local mode = clickThrough and "clickthrough" or (DisplayingBlizzardPlate(plate) and "blizzard" or "custom")
+	local plateStyle = plate.extended.style
+	if mode == "custom" and (not plateStyle or not plateStyle.frame or not plateStyle.healthbar) then return end
+	-- The carrier follows UI scale (and optionally Blizzard scale). The hit-test
+	-- frame must not inherit the extended frame's target/mouseover enlargement.
+	local scale = plate.carrier:GetEffectiveScale() / plate:GetEffectiveScale()
+	if hitTestFrame.mode == mode and hitTestFrame.appliedScale == scale
+		and hitTestFrame.appliedStyle == plateStyle and hitTestFrame.appliedStyleName == plate.extended.stylename
+	then return end
+	if not plate:CanChangeHitTestPoints() then return end
+
+	if mode == "clickthrough" then
+		plate:ClearAllHitTestPoints()
+	elseif mode == "blizzard" then
+		plate:SetAllHitTestPoints(plate.UnitFrame)
+	else
+		hitTestFrame:ClearAllPoints()
+		hitTestFrame:SetScale(scale)
+		hitTestFrame:SetSize(hitTestFrame.width, hitTestFrame.height)
+		-- Stay in the native plate hierarchy so hover scaling cannot move the
+		-- clickable bounds and repeatedly change the mouseover unit.
+		local x, y = GetHealthbarHitTestOffset(plate, hitTestFrame)
+		hitTestFrame:SetPoint("CENTER", plate.UnitFrame, "CENTER", x, y)
+		plate:SetAllHitTestPoints(hitTestFrame)
+	end
+
+	hitTestFrame.mode, hitTestFrame.appliedScale = mode, scale
+	hitTestFrame.appliedStyle = plateStyle
+	hitTestFrame.appliedStyleName = plate.extended.stylename
+	local preview = plate.extended.visual.hitbox
+	preview:ClearAllPoints()
+	preview:SetAllPoints(mode == "blizzard" and plate.UnitFrame or hitTestFrame)
+	if hitTestFrame.preview and mode ~= "clickthrough" then preview:Show() else preview:Hide() end
 end
 
 -- UpdateReferences
@@ -661,6 +746,7 @@ do
 		elseif plate.UnitFrame then
 			KeepBlizzardUnitFrameAsAnchor(plate.UnitFrame, force)
 		end
+		UpdateNameplateHitTest(plate)
 	end
 
         -- OnUpdate; This function is run frequently, on every clock cycle
@@ -767,6 +853,14 @@ do
 
 		plate.carrier = carrier
 		plate.extended = extended
+		if NEATPLATES_IS_FOREVER
+			and plate.CanChangeHitTestPoints and plate.SetAllHitTestPoints and plate.ClearAllHitTestPoints
+		then
+			local hitTestFrame = CreateFrame("Frame", nil, plate)
+			hitTestFrame:EnableMouse(false)
+			hitTestFrame:Hide()
+			plate.neatPlatesHitTestFrame = hitTestFrame
+		end
 
     -- Add Graphical Elements
 		local visual = {}
@@ -1141,6 +1235,10 @@ do
 		visual.castbar:Hide()
 		visual.highlight:Hide()
 		visual.hitbox:Hide()
+		if plate.neatPlatesHitTestFrame then
+			plate.neatPlatesHitTestFrame.preview = false
+			plate.neatPlatesHitTestFrame.mode = nil
+		end
 
 
 
@@ -1169,6 +1267,13 @@ do
 		UpdateReferences(plate)
 
 		extended.Active = false
+		if plate.neatPlatesHitTestFrame then
+			plate.neatPlatesHitTestFrame.mode = nil
+			plate.neatPlatesHitTestFrame.preview = false
+			if plate:CanChangeHitTestPoints() and plate.UnitFrame then
+				plate:SetAllHitTestPoints(plate.UnitFrame)
+			end
+		end
 		if NEATPLATES_IS_RETAIL and extended.eventFrame then
 			extended.eventFrame:UnregisterAllEvents()
 		end
@@ -2878,6 +2983,8 @@ function NeatPlates:SetCoreVariables(LocalVars)
 	ThreatSoloEnable = LocalVars.ThreatSoloEnable
 	ReplaceUnitNameArenaID = LocalVars.TextUnitNameArenaID
 	OpacityIgnoreBlizzardAlpha = LocalVars.OpacityIgnoreBlizzardAlpha == true
+	FriendlyClickThrough = LocalVars.StyleFriendlyBarsClickThrough == true
+	EnemyClickThrough = LocalVars.StyleEnemyBarsClickThrough == true
 	NameplateNoStackingFriendly = LocalVars.NameplateNoStackingFriendly
 	NameplateNoStackingFriendlyKeepWidth = LocalVars.NameplateNoStackingFriendlyKeepWidth
 
