@@ -91,6 +91,18 @@ These checks validate structure only. The addon runs inside WoW's Lua
 environment, so actual UI behavior still needs in-game testing on affected
 clients.
 
+With Lua 5.1 installed, run `lua tools\test_castbar.lua` from the repository root
+for focused cast-bar regression checks using stubbed WoW APIs. These cover
+duration styles, native timers, readable/secret values, and spell-target updates,
+including direct formatting of protected duration values. CI runs these checks;
+they do not emulate Blizzard's protected runtime.
+The checks also cover class-coloured spell targets without Blizzard's legacy
+colour formatter and party-aggro name colours through both name-update paths.
+Roth checks cover cast-fill texture cropping, locale fonts, non-overlapping
+cast labels, and consistent name-only positioning. Roth uses its dedicated
+cast-fill artwork, with the spell name and target below the bar and the timer
+inside it; Russian uses the client font instead of the Latin-only decorative font.
+
 See [AGENTS.md](AGENTS.md) for the current architecture, contribution guidance,
 manual validation, and proposed architecture, CI, and release improvements.
 Shared text conventions live in `.editorconfig` and `.gitattributes`; IDE

@@ -62,6 +62,9 @@ jobs:
           done < <(find . -name '*.lua' -not -path './NeatPlates/libs/*' -not -path './.git/*' -print0)
           exit $failed
 
+      - name: Check cast-bar behavior with WoW API stubs
+        run: lua5.1 tools/test_castbar.lua
+
   luacheck:
     name: Luacheck (advisory)
     runs-on: ubuntu-latest

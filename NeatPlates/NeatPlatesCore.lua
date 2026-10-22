@@ -28,6 +28,7 @@ end
 local _
 local max = math.max
 local round = NeatPlatesUtility.round
+local ConvertRGBtoColorString = NeatPlatesUtility.ConvertRGBtoColorString
 local fade = NeatPlatesUtility.fade
 local select, pairs, tostring  = select, pairs, tostring 			    -- Local function copy
 local CreateNeatPlatesStatusbar = CreateNeatPlatesStatusbar			    -- Local function copy
@@ -997,9 +998,7 @@ local function NameplateEventHandler(self, event, ...)
 	elseif event == "UNIT_NAME_UPDATE" then
 		SetUpdateMe(self)
 	elseif event == "UNIT_TARGET" then
-		if not NEATPLATES_IS_RETAIL then
-			OnUpdateCastTarget(self, unitid)
-		end
+		OnUpdateCastTarget(self, unitid)
 	elseif event == "UNIT_LEVEL"
 		or event == "UNIT_FACTION"
 		or event == "UNIT_THREAT_SITUATION_UPDATE"
@@ -1285,6 +1284,8 @@ do
 		visual.extrabar:Hide()
 		visual.castbar:Hide()
 		visual.castbar:SetScript("OnUpdate", nil)
+		visual.castbar.castDuration = nil
+		visual.castbar.castStartTime, visual.castbar.castEndTime, visual.castbar.castIsChannel = nil, nil, nil
 		unit.isCasting = false
 
 		-- Remove anything from the function queue
@@ -2186,6 +2187,18 @@ do
 		self:SetValue((endTime + startTime) - currentTime)
 	end
 
+	local function OnUpdateCastBarDuration(self)
+		if self.castDuration and activetheme.SetCastbarDurationObject then
+			activetheme.SetCastbarDurationObject(self.durationtext, self.castDuration, self.castIsChannel)
+			return
+		end
+		local text = ""
+		if self.castStartTime and self.castEndTime and activetheme.SetCastbarDuration then
+			text = activetheme.SetCastbarDuration(GetTime() * 1000, self.castStartTime, self.castEndTime, self.castIsChannel)
+		end
+		self.durationtext:SetText(text)
+	end
+
 	-- OnShowCastbar
 	function OnStartCasting(plate, unitid, channeled)
 		local guid = unitid -- Clasic era, we pass a guid instead of unitid
@@ -2217,9 +2230,25 @@ do
 			end
 
 			castBar:SetScript("OnUpdate", nil)
+			castBar.castDuration = nil
+			castBar.castStartTime, castBar.castEndTime, castBar.castIsChannel = nil, nil, nil
+			local readableTimes = not IsSecretValue(startTime) and not IsSecretValue(endTime)
+				and type(startTime) == "number" and type(endTime) == "number"
 			if durationObject and castBar.SetTimerDuration then
 				local direction = channeled and Enum.StatusBarTimerDirection.RemainingTime or Enum.StatusBarTimerDirection.ElapsedTime
 				castBar:SetTimerDuration(durationObject, Enum.StatusBarInterpolation.Immediate, direction)
+				if durationObject.GetRemainingDuration and durationObject.GetElapsedDuration
+					and durationObject.GetTotalDuration and activetheme.SetCastbarDurationObject
+				then
+					castBar.castDuration, castBar.castIsChannel = durationObject, channeled
+					castBar:SetScript("OnUpdate", OnUpdateCastBarDuration)
+				elseif readableTimes then
+					castBar.castStartTime, castBar.castEndTime, castBar.castIsChannel = startTime, endTime, channeled
+					castBar:SetScript("OnUpdate", OnUpdateCastBarDuration)
+				end
+			elseif readableTimes then
+				castBar:SetMinMaxValues(startTime, endTime)
+				castBar:SetScript("OnUpdate", channeled and OnUpdateCastBarReverse or OnUpdateCastBarForward)
 			else
 				castBar:SetMinMaxValues(0, 1)
 				castBar:SetValue(channeled and 1 or 0)
@@ -2272,9 +2301,7 @@ do
 		castBar:SetScript("OnEvent", nil)
 		--castBar:UnregisterEvent("COMBAT_LOG_EVENT_UNFILTERED");
 
-		if not NEATPLATES_IS_RETAIL then
-			OnUpdateCastTarget(plate, unitid)
-		end
+		OnUpdateCastTarget(plate, unitid)
 
 		-- Set spell text & duration
 		if ShowCastSpellName then
@@ -2369,6 +2396,8 @@ do
 			end)
 
 			castBar:SetScript("OnUpdate", nil)
+			castBar.castDuration = nil
+			castBar.castStartTime, castBar.castEndTime, castBar.castIsChannel = nil, nil, nil
 		end
 	end
 
@@ -2381,6 +2410,8 @@ do
 
 		castBar:Hide()
 		castBar:SetScript("OnUpdate", nil)
+		castBar.castDuration = nil
+		castBar.castStartTime, castBar.castEndTime, castBar.castIsChannel = nil, nil, nil
 
 		visual.spelltarget:SetText("")
 
@@ -2411,14 +2442,23 @@ do
 	function OnUpdateCastTarget(plate, unitid)
 		if ShowSpellTarget and plate and unitid then
 			local targetof = unitid.."target"
-			local targetname =  UnitName(targetof) or ""
-			if UnitIsUnit(targetof, "player") then
-				targetname = "|cFFFF1100"..">> "..L["You"].." <<" or ""	-- Red '>> You <<' instead of character name
-			elseif UnitIsPlayer(targetof) then
-				local targetclass = select(2, UnitClass(targetof))
-				targetname = ConvertRGBtoColorString(NEATPLATES_CLASS_COLORS[targetclass])..targetname or ""
+			local targetname = UnitName(targetof)
+			local spelltarget = plate.extended.visual.spelltarget
+			if IsSecretValue(targetname) then
+				spelltarget:SetText(targetname)
+				return
 			end
-			plate.extended.visual.spelltarget:SetText(targetname)
+			targetname = targetname or ""
+			local isYou = UnitIsUnit(targetof, "player")
+			local isPlayer = UnitIsPlayer(targetof)
+			if not IsSecretValue(isYou) and isYou then
+				targetname = "|cFFFF1100"..">> "..L["You"].." <<"	-- Red '>> You <<' instead of character name
+			elseif not IsSecretValue(isPlayer) and isPlayer then
+				local targetclass = select(2, UnitClass(targetof))
+				local color = not IsSecretValue(targetclass) and NEATPLATES_CLASS_COLORS[targetclass]
+				if color then targetname = ConvertRGBtoColorString(color)..targetname end
+			end
+			spelltarget:SetText(targetname)
 		end
 	end
 

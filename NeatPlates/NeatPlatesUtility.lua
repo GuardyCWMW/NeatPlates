@@ -193,6 +193,10 @@ local function RGBToHex(r,g,b)
 end
 
 
+local function ConvertRGBtoColorString(color)
+	return ("|cff%02x%02x%02x"):format(math.floor(color.r * 255), math.floor(color.g * 255), math.floor(color.b * 255))
+end
+
 -- Round to x decimals
 local function round(number, decimals)
     return (("%%.%df"):format(decimals)):format(number)
@@ -225,6 +229,7 @@ NeatPlatesUtility.mergeTable = mergetable
 NeatPlatesUtility.updateTable = updatetable
 NeatPlatesUtility.HexToRGB = HexToRGB
 NeatPlatesUtility.RGBToHex = RGBToHex
+NeatPlatesUtility.ConvertRGBtoColorString = ConvertRGBtoColorString
 NeatPlatesUtility.round = round
 NeatPlatesUtility.fade = fade
 NeatPlatesUtility.ParseGUID = ParseGUID
@@ -2160,8 +2165,6 @@ do
 end
 
 -- /run for i,v in pairs(INTERFACEOPTIONS_ADDONCATEGORIES) do print(i, v, v.name) end
-
-
 
 
 

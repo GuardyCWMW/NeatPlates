@@ -674,7 +674,10 @@ local function SetNameColorDelegate(unit)
 
 	-- Party Aggro Coloring, if enabled
 	if isFriendly and LocalVars.ColorShowPartyAggro and LocalVars.ColorPartyAggroText then
-		if GetFriendlyThreat(unit.unitid) then return LocalVars.ColorPartyAggro end
+		if GetFriendlyThreat(unit.unitid) then
+			local color = LocalVars.ColorPartyAggro
+			return color.r, color.g, color.b, color.a or 1
+		end
 	end
 
 	-- Headline Mode
@@ -761,7 +764,6 @@ NeatPlatesHubFunctions.SetCastbarColor = CastBarDelegate
 NeatPlatesHubFunctions.SetThreatColor = ThreatColorDelegate
 NeatPlatesHubFunctions.SetNameColor = SetNameColorDelegate
 NeatPlatesHubFunctions.ShouldUseRetailEnemyClassColor = ShouldUseRetailEnemyClassColor
-
 
 
 
