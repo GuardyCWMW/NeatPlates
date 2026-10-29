@@ -186,8 +186,8 @@ of them so a change does not quietly make them worse.
   inconsistency. The validator reports it as a warning; resolve it deliberately
   rather than by bulk-editing untested Interface values.
 - The Git index stores LF, while a Windows checkout typically has CRLF in the
-  working tree, and `.editorconfig` declares `end_of_line = lf`. There is no
-  `.gitattributes` to make that normalization explicit for other contributors.
+  working tree. `.editorconfig` declares `end_of_line = lf`, and `.gitattributes`
+  makes that normalization explicit for other contributors.
   Several `.toc` files are UTF-8 with BOM even though `.editorconfig` specifies
   plain `utf-8`. An editor that aggressively applies EditorConfig can therefore
   rewrite an entire legacy file on first touch. Keep diffs to the lines you
