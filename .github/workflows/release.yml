@@ -82,5 +82,7 @@ jobs:
         with:
           name: neatplates-release
           path: .release/*.zip
+          # The packager output directory is hidden.
+          include-hidden-files: true
           if-no-files-found: error
           retention-days: 90
