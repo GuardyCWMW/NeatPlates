@@ -77,12 +77,14 @@ jobs:
           WOWI_API_TOKEN: ${{ secrets.WOWI_API_TOKEN }}
           WAGO_API_TOKEN: ${{ secrets.WAGO_API_TOKEN }}
 
+      # Keep the distribution ZIP for publishing; unwrap only the Actions artifact.
+      - name: Prepare install-ready artifact
+        run: python tools/prepare_artifact.py "${{ runner.temp }}/neatplates-artifact"
+
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
           name: neatplates-release
-          path: .release/*.zip
-          # The packager output directory is hidden.
-          include-hidden-files: true
+          path: ${{ runner.temp }}/neatplates-artifact/
           if-no-files-found: error
           retention-days: 90
