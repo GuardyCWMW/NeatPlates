@@ -4,6 +4,7 @@
 ## Notes: Community Edition for Retail - Maintained by guardycmw
 ## Author: guardycmw (original by Luxocracy and friends)
 ## Version: @project-version@
+## X-Curse-Project-ID: 1565371
 ## SavedVariables: NeatPlatesSettings
 ## SavedVariablesPerCharacter: NeatPlatesOptions
 
