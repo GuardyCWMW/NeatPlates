@@ -618,6 +618,7 @@ local function ApplyHubFunctions(theme)
 	theme.SetCustomText = NeatPlatesHubFunctions.SetCustomText
 	theme.SetSubText = NeatPlatesHubFunctions.SetSubText
 	theme.SetCastbarDuration = NeatPlatesHubFunctions.SetCastbarDuration
+	theme.SetCastbarDurationObject = NeatPlatesHubFunctions.SetCastbarDurationObject
 	theme.OnInitialize = OnInitialize		-- Need to provide widget positions
 	theme.OnActivateTheme = OnActivateTheme -- called by NeatPlates Core, Theme Loader
 	theme.ApplyProfileSettings = ApplyProfileSettings
@@ -654,7 +655,6 @@ NeatPlatesHubFunctions.ApplyHubFunctions = ApplyHubFunctions
 NeatPlatesHubFunctions.ApplyRequiredCVars = ApplyRequiredCVars
 NeatPlatesHubFunctions.GetCustomizationOption = GetCustomizationOption
 NeatPlatesHubFunctions.SetCustomizationOption = SetCustomizationOption
-
 
 
 

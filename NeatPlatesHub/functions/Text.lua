@@ -25,6 +25,7 @@ local GetUnitSubtitle = NeatPlatesUtility.GetUnitSubtitle
 local GetUnitQuestInfo = NeatPlatesUtility.GetUnitQuestInfo
 local GetArenaIndex = NeatPlatesUtility.GetArenaIndex
 local round = NeatPlatesUtility.round
+local ConvertRGBtoColorString = NeatPlatesUtility.ConvertRGBtoColorString
 local issecretvalue = issecretvalue
 local RetailAbbreviateNumbers = AbbreviateNumbersAlt or AbbreviateNumbers
 local RetailBreakUpLargeNumbers = BreakUpLargeNumbers
@@ -748,6 +749,24 @@ local function CastbarDurationDelegate(...)
 	return func(...)
 end
 
+local function SetCastbarDurationObject(fontString, duration, isChannel)
+	local mode = LocalVars.CastbarDurationMode
+	-- Duration values can be secret; only Blizzard's formatter may inspect them.
+	if mode == "TimeRemaining" then
+		fontString:SetFormattedText("%.1f", duration:GetRemainingDuration())
+	elseif mode == "TimeElapsed" then
+		fontString:SetFormattedText("%.1f", duration:GetElapsedDuration())
+	elseif mode == "TimeCastTime" then
+		if isChannel then
+			fontString:SetFormattedText("%.1f/%.1f", duration:GetRemainingDuration(), duration:GetTotalDuration())
+		else
+			fontString:SetFormattedText("%.1f/%.1f", duration:GetElapsedDuration(), duration:GetTotalDuration())
+		end
+	else
+		fontString:SetText("")
+	end
+end
+
 ------------------------------------------------------------------------------
 -- Local Variable
 ------------------------------------------------------------------------------
@@ -765,6 +784,6 @@ HubData.RegisterCallback(OnVariableChange)
 NeatPlatesHubFunctions.SetCustomText = HealthTextDelegate
 NeatPlatesHubFunctions.SetSubText = SubTextDelegate
 NeatPlatesHubFunctions.SetCastbarDuration = CastbarDurationDelegate
+NeatPlatesHubFunctions.SetCastbarDurationObject = SetCastbarDurationObject
 NeatPlatesHubFunctions.GetArenaIndex = GetArenaIndex
 NeatPlatesHubFunctions.SetUnitName = UnitNameDelegate
-

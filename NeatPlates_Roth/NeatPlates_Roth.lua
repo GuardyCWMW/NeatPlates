@@ -10,7 +10,7 @@ local casty = 0
 
 local VerticalAdjustment = 12
 
-local NonLatinLocales = { ["koKR"] = true, ["zhCN"] = true, ["zhTW"] = true, }
+local NonLatinLocales = { ["koKR"] = true, ["ruRU"] = true, ["zhCN"] = true, ["zhTW"] = true, }
 if NonLatinLocales[GetLocale()] == true then
 	font = STANDARD_TEXT_FONT
 	fontroboto = STANDARD_TEXT_FONT
@@ -63,6 +63,11 @@ StyleDefault.castnostop = {
 
 StyleDefault.castbar = {
 	texture =					path.."StatusBar",
+	-- The fill occupies only this region of the original 128x64 canvas.
+-- 	left = 44/128,
+-- 	right = 126/128,
+-- 	top = 38/64,
+-- 	bottom = 45/64,
 	width = 86,
 	height = 8,
 	x = -4,
@@ -212,39 +217,45 @@ StyleDefault.customtext = {
 }
 
 StyleDefault.spelltext = {
-	typeface =					font,
-	size = 9,
-	x = -6,
-	y = -21,
-	width = 70,
-	align = "LEFT",
-	vertical = "BOTTOM",
+	typeface =					fontroboto,
+	size = 10,
+	x = -4,
+	y = -35,
+	width = 128,
+	height = 12,
+	anchor = "CENTER",
+	align = "CENTER",
+	vertical = "MIDDLE",
 	shadow = true,
 	flags = "NONE",
 	show = true,
 }
 
 StyleDefault.spelltarget = {
-	typeface =					font,
-	size = 9,
-	x = -6,
-	y = -30,
-	width = 70,
-	align = "LEFT",
-	vertical = "BOTTOM",
+	typeface =					fontroboto,
+	size = 10,
+	x = -4,
+	y = -47,
+	width = 128,
+	height = 12,
+	anchor = "CENTER",
+	align = "CENTER",
+	vertical = "MIDDLE",
 	shadow = true,
 	flags = "NONE",
 	show = true,
 }
 
 StyleDefault.durationtext = {
-	typeface =					font,
-	size = 9,
-	x = -31,
-	y = -21,
-	width = 70,
+	typeface =					fontroboto,
+	size = 8,
+	x = -4,
+	y = -22,
+	width = 80,
+	height = 10,
+	anchor = "CENTER",
 	align = "RIGHT",
-	vertical = "BOTTOM",
+	vertical = "MIDDLE",
 	shadow = true,
 	flags = "NONE",
 	show = true,
@@ -343,16 +354,10 @@ StyleTextOnly.subtext.y = 0
 StyleTextOnly.subtext.width = 500
 StyleTextOnly.customtext.show = false
 StyleTextOnly.level.show = false
-StyleTextOnly.castbar.y = -28
-StyleTextOnly.castbar.x = -6
-StyleTextOnly.castborder.y = -15
-StyleTextOnly.castborder.x = -13
-StyleTextOnly.castnostop.y = -15
-StyleTextOnly.castnostop.x = -13
-StyleTextOnly.spelltext.y = -28
-StyleTextOnly.spelltext.x = -6
-StyleTextOnly.spellicon.y = -28
-StyleTextOnly.spellicon.x = -19
+for _, element in ipairs({"castbar", "castborder", "castnostop", "spelltext", "spelltarget", "durationtext", "spellicon"}) do
+	StyleTextOnly[element].x = StyleDefault[element].x - 2
+	StyleTextOnly[element].y = StyleDefault[element].y - 6
+end
 StyleTextOnly.skullicon.show = false
 StyleTextOnly.eliteicon.show = false
 StyleTextOnly.raidicon.x = -72

@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Download NeatPlates Community Edition
+    url: https://www.curseforge.com/wow/addons/neatplates-community-edition-mop-classic
+    about: Get the latest packaged release. GitHub source archives are not a substitute.
+  - name: Original NeatPlates (Luxocracy)
+    url: https://github.com/Luxocracy/NeatPlates
+    about: For issues with the original addon rather than Community Edition.

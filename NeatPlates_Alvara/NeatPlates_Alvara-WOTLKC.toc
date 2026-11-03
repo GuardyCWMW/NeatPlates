@@ -3,7 +3,7 @@
 ## IconTexture: Interface\AddOns\NeatPlates\Media\NeatPlatesIcon.tga
 ## Notes: Made to Alvara's specifications. Very Simple.
 ## Author: Alvara - Zul'Jin
-## Version: 5a
+## Version: @project-version@
 ## Dependencies: NeatPlates, NeatPlatesHub
 
 NeatPlates_Alvara.lua

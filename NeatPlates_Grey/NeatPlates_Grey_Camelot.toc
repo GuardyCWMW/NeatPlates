@@ -3,6 +3,7 @@
 ## IconTexture: Interface\AddOns\NeatPlates\Media\NeatPlatesIcon.tga
 ## Notes: Use apostrophes wisely.
 ## Author: Binny
+## Version: @project-version@
 ## Dependencies: NeatPlates, NeatPlatesHub
 
 Grey.lua

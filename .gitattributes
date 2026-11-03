@@ -1,0 +1,40 @@
+# Normalize all text to LF in the repository.
+# The index already stores LF, so this records existing behavior rather than
+# changing it. Windows working copies may still check out CRLF via core.autocrlf.
+* text=auto eol=lf
+
+# Source and manifests
+*.lua   text eol=lf
+*.xml   text eol=lf
+*.toc   text eol=lf
+*.md    text eol=lf
+*.json  text eol=lf
+*.yml   text eol=lf
+*.yaml  text eol=lf
+
+# WoW and media assets must never be line-ending converted.
+*.tga   binary
+*.blp   binary
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.ttf   binary
+*.otf   binary
+*.ogg   binary
+*.mp3   binary
+*.wav   binary
+*.zip   binary
+
+# Vendored third-party code: exclude from language stats and from diffs by
+# default, so project changes stand out in review.
+NeatPlates/libs/** linguist-vendored
+NeatPlates/libs/** -diff
+
+# Development-only files, excluded from release archives by `git archive`.
+.gitattributes  export-ignore
+.gitignore      export-ignore
+.editorconfig   export-ignore
+.github/        export-ignore
+AGENTS.md       export-ignore
+CLAUDE.md       export-ignore

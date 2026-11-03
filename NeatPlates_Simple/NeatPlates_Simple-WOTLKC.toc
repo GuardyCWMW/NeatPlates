@@ -3,7 +3,7 @@
 ## IconTexture: Interface\AddOns\NeatPlates\Media\NeatPlatesIcon.tga
 ## Notes: Simple NeatPlates skin with some built-in Healer functionality.
 ## Author: FunkyCold
-## Version: 7.3.0
+## Version: @project-version@
 ## Dependencies: NeatPlates, NeatPlatesHub
 
 NeatPlates_Simple.lua

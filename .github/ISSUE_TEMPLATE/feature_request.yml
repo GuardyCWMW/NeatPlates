@@ -1,0 +1,54 @@
+name: Feature or change request
+description: Suggest an improvement to NeatPlates Community Edition.
+labels: ["enhancement", "needs triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        CE prioritizes compatibility, stability, and preserving familiar
+        NeatPlates behavior. Changes that alter existing defaults or appearance
+        need a clear reason, so please describe the problem as well as the idea.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve?
+      description: Describe the situation you run into, not just the solution.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior
+    validations:
+      required: true
+
+  - type: dropdown
+    id: clients
+    attributes:
+      label: Which clients should this apply to?
+      multiple: true
+      options:
+        - "Forever"
+        - "Retail"
+        - "MoP Classic"
+        - "TBC Anniversary"
+        - "Classic Era"
+        - "All supported clients"
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: impact
+    attributes:
+      label: Impact
+      options:
+        - label: This would change existing defaults or current appearance.
+        - label: This would affect saved profiles or require a migration.
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Existing settings, other addons, or workarounds you have tried.

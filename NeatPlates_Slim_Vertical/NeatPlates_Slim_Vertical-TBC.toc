@@ -2,7 +2,7 @@
 ## Title: NeatPlates: Slim Vertical|r
 ## IconTexture: Interface\AddOns\NeatPlates\Media\NeatPlatesIcon.tga
 ## Author: guardycmw (original by Luxocracy and friends)
-## Version: 2.2
+## Version: @project-version@
 ## Dependencies: NeatPlates, NeatPlatesHub
 
 NeatPlates_Slim_Vertical.lua
