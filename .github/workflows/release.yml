@@ -13,7 +13,7 @@ name: Release
 #
 # Tag naming drives the version stamped into every TOC via @project-version@,
 # e.g. `git tag -a v468-ce7.6 -m "v468-ce7.6" && git push origin v468-ce7.6`.
-# Use an annotated tag: the packager ignores lightweight ones for versioning.
+# Prefer an annotated tag to record release authorship and a message.
 
 on:
   push:
@@ -53,14 +53,23 @@ jobs:
         id: mode
         env:
           CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          DRY_RUN: ${{ inputs.dry_run }}
         run: |
-          if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
+          if [ "${DRY_RUN}" = "true" ]; then
             echo "args=-d" >> "$GITHUB_OUTPUT"
             echo "::notice::Manual dry run - building only, no upload."
+          elif [ "${GITHUB_REF_TYPE}" != "tag" ]; then
+            echo "::error::Publishing requires a tag. Select a release tag for a manual run, or enable dry_run."
+            exit 1
           elif [ -z "${CF_API_TOKEN}" ]; then
-            echo "args=-d" >> "$GITHUB_OUTPUT"
+            # Disable third-party destinations, not GitHub (-d skips ALL uploads).
+            echo "args=-p 0 -w 0 -a 0" >> "$GITHUB_OUTPUT"
             echo "::notice::No CF_API_TOKEN configured - building and attaching to the GitHub Release only."
           else
+            if ! grep -Eq '^## X-Curse-Project-ID:[[:blank:]]*[1-9][0-9]*[[:space:]]*$' NeatPlates/NeatPlates.toc; then
+              echo "::error file=NeatPlates/NeatPlates.toc::CF_API_TOKEN is configured, but the tagged core manifest has no valid X-Curse-Project-ID. Merge the project metadata before tagging."
+              exit 1
+            fi
             echo "args=" >> "$GITHUB_OUTPUT"
             echo "::notice::Publishing to configured distribution channels."
           fi
@@ -70,9 +79,9 @@ jobs:
         with:
           args: ${{ steps.mode.outputs.args }}
         env:
-          # GITHUB_TOKEN is always present, so the zip is attached to the
-          # GitHub Release even with no third-party credentials configured.
-          GH_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # The packager expects GITHUB_API_TOKEN, not GH_API_TOKEN.
+          # Non-dry runs attach the ZIP even without third-party credentials.
+          GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
           WOWI_API_TOKEN: ${{ secrets.WOWI_API_TOKEN }}
           WAGO_API_TOKEN: ${{ secrets.WAGO_API_TOKEN }}

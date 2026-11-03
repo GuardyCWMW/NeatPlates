@@ -91,6 +91,22 @@ their contents. There is no second ZIP to extract. These are development builds,
 not public releases or proof of in-game compatibility. Release workflow artifacts
 use the same layout; the original distribution ZIP remains unchanged for publishing.
 
+The **Release** workflow publishes tags matching `v*`. Before tagging, merge both
+the release workflow changes and the CurseForge project metadata into the release
+commit. All nine core manifests in `NeatPlates` should declare
+`## X-Curse-Project-ID: 1565371`; the bundled widgets, Hub, and themes do not need
+separate project IDs for this distribution. Configure `CF_API_TOKEN` as an Actions
+secret with permission to upload to that project.
+
+A live release attaches the distribution ZIP to the GitHub Release and uploads
+to CurseForge when its token is configured. Without that token, only GitHub
+publishing is enabled. Manual runs default to `dry_run`, which disables **all**
+uploads but still produces an Actions artifact. To publish manually, select a
+release tag and disable `dry_run`; publishing from a branch is rejected.
+Re-running an old tag uses its old workflow and files, not newer changes on
+`main`. Prefer a new annotated version tag on the corrected commit rather than
+moving an already published tag.
+
 You can run the structural check yourself with Python 3 and no other dependencies:
 
 ```
