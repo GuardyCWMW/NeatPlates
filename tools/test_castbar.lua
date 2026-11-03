@@ -321,14 +321,16 @@ for _, locale in ipairs({"enUS", "ruRU", "koKR", "zhCN", "zhTW"}) do
 	load(read("NeatPlates_Roth\\NeatPlates_Roth.lua"), themeEnv)
 	local roth = themeEnv.NeatPlatesThemeList.Roth
 	local default = roth.Default
-	equal(default.castbar.texture, "Interface\\Addons\\NeatPlates_Roth\\Media\\CastBar")
-	equal(default.castbar.left * 128, 44)
-	equal(default.castbar.right * 128, 126)
-	equal(default.castbar.top * 64, 38)
-	equal(default.castbar.bottom * 64, 45)
 	local expectedFont = locale == "enUS"
 		and "Interface\\Addons\\NeatPlatesHub\\shared\\RobotoCondensed-Bold.ttf" or themeEnv.STANDARD_TEXT_FONT
 	for _, style in ipairs({default, roth.NameOnly}) do
+		equal(style.castbar.texture, "Interface\\Addons\\NeatPlates_Roth\\Media\\StatusBar")
+		equal(style.castbar.left, nil)
+		equal(style.castbar.right, nil)
+		equal(style.castbar.top, nil)
+		equal(style.castbar.bottom, nil)
+		equal(style.castbar.width, 86)
+		equal(style.castbar.height, 8)
 		for _, element in ipairs({"spelltext", "spelltarget", "durationtext"}) do
 			equal(style[element].typeface, expectedFont)
 			equal(style[element].anchor, "CENTER")

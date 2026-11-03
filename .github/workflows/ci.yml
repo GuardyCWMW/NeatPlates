@@ -99,10 +99,18 @@ jobs:
         with:
           args: -d
 
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      # Upload the contents, not a ZIP inside GitHub's artifact ZIP.
+      - name: Prepare install-ready artifact
+        run: python tools/prepare_artifact.py "${{ runner.temp }}/neatplates-artifact"
+
       - name: Upload build for review
         uses: actions/upload-artifact@v4
         with:
           name: neatplates-package
-          path: .release/*.zip
+          path: ${{ runner.temp }}/neatplates-artifact/
           if-no-files-found: error
           retention-days: 14
