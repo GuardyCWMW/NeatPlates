@@ -22,8 +22,10 @@ enable-nolib-creation: no
 # Each TOC carries its own explicit flavor, so no TOC splitting is needed.
 enable-toc-creation: no
 
+# Keep the changelog at the repository root: move-folders relocates nested addon
+# files after the packager records the changelog path used by upload requests.
 manual-changelog:
-    filename: NeatPlates/CHANGELOG.md
+    filename: CHANGELOG.md
     markup-type: markdown
 
 changelog-title: NeatPlates Community Edition
