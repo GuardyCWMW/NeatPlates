@@ -10,7 +10,7 @@ combat details. CE focuses on compatibility, stability, performance, and
 preserving the familiar NeatPlates appearance and behavior.
 
 Download [Community Edition on CurseForge](https://www.curseforge.com/wow/addons/neatplates-community-edition-mop-classic).
-For version-specific changes, see the [changelog](NeatPlates/CHANGELOG.md).
+For version-specific changes, see the [changelog](CHANGELOG.md).
 
 ## Supported WoW Versions
 
