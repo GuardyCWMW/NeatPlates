@@ -80,8 +80,18 @@ and verification performed in pull requests.
 
 Every pull request runs automated structural checks: manifest and XML integrity,
 a Lua 5.1 syntax parse, an advisory lint pass, and a packaged build you can
-download from the run's artifacts to test in game. You can run the structural
-check yourself with Python 3 and no other dependencies:
+download from the run's artifacts to test in game.
+
+To try a reviewer build, open a successful **Actions > CI** run and download
+the **neatplates-package** artifact. Extract the downloaded ZIP once, then copy
+the 15 addon folders directly into your client's `Interface\AddOns` directory,
+as described under Installation. CI checks that the package contains the expected
+sibling addon folders, each with its base manifest and license, before uploading
+their contents. There is no second ZIP to extract. These are development builds,
+not public releases or proof of in-game compatibility. Release workflow artifacts
+use the same layout; the original distribution ZIP remains unchanged for publishing.
+
+You can run the structural check yourself with Python 3 and no other dependencies:
 
 ```
 python tools/validate_addon.py
