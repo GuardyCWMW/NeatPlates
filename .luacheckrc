@@ -103,7 +103,8 @@ read_globals = {
 	"UnitSelectionColor", "UnitDetailedThreatSituation", "UnitThreatSituation",
 	"UnitGroupRolesAssigned", "UnitIsPVP", "UnitRace", "UnitSex",
 	"UnitChannelInfo", "UnitCastingInfo", "UnitAura", "C_UnitAuras",
-	"GetUnitName", "UnitIsQuestBoss", "UnitWidgetSet",
+	"GetUnitName", "NameUtil", "UnitIsQuestBoss", "UnitWidgetSet",
+	"C_PlayerInfo", "GetDifficultyColor",
 
 	-- Spell / item
 	"GetSpellInfo", "C_Spell", "C_Item", "GetSpellTexture", "GetItemInfo",

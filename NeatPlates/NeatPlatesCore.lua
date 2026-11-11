@@ -1440,7 +1440,8 @@ do
 	--------------------------------------------------------
 	function UpdateUnitIdentity(plate, unitid)
 		unit.unitid = unitid
-		local unitName, unitRealm = UnitName(unitid)
+		local unitName, realmOrSurname = UnitName(unitid)
+		if NEATPLATES_IS_FOREVER then unit.displayName = false end
 		if IsSecretValue(unitName) then
 			extended.retailUnitName = unitName
 			extended.retailUnitNameIsSecret = true
@@ -1448,7 +1449,8 @@ do
 		else
 			extended.retailUnitName = nil
 			extended.retailUnitNameIsSecret = false
-			unit.name, unit.realm = unitName or "", unitRealm
+			unit.name = unitName or ""
+			unit.realm = not NEATPLATES_IS_FOREVER and realmOrSurname or nil
 		end
 
 		local pvpName = UnitPVPName(unitid)
@@ -1485,6 +1487,10 @@ do
 		local isPlayer = UnitIsPlayer(unitid)
 		if IsSecretValue(isPlayer) then isPlayer = false end
 		if isPlayer then
+			if NEATPLATES_IS_FOREVER and unit.name ~= "" and not IsSecretValue(realmOrSurname)
+				and realmOrSurname and realmOrSurname ~= "" and NameUtil and NameUtil.GetFullNameWithoutRealm then
+				unit.displayName = NameUtil.GetFullNameWithoutRealm(unit.name, realmOrSurname)
+			end
 			local _, class = UnitClass(unitid)
 			unit.class = IsSecretValue(class) and "" or class
 			unit.type = "PLAYER"
@@ -1536,9 +1542,24 @@ do
 		if IsSecretValue(unit.level) then unit.level = 0 end
 
 		local c = GetCreatureDifficultyColor(unit.level)
-		unit.levelcolorRed, unit.levelcolorGreen, unit.levelcolorBlue = c.r or 0.5, c.g or 0.5, c.b or 0.5 -- Default to grey if no color is found
-
 		unit.isTrivial = (c.r == 0.5 and c.g == 0.5 and c.b == 0.5)
+
+		-- Match Forever's target frame without changing the legacy trivial-unit filter.
+		if NEATPLATES_IS_FOREVER and unit.level > 0 and C_PlayerInfo
+			and C_PlayerInfo.GetContentDifficultyCreatureForPlayer and GetDifficultyColor then
+			local canAttack = UnitCanAttack("player", unitid)
+			if not IsSecretValue(canAttack) and canAttack then
+				local difficulty = C_PlayerInfo.GetContentDifficultyCreatureForPlayer(unitid)
+				if not IsSecretValue(difficulty) and difficulty ~= nil then
+					local color = GetDifficultyColor(difficulty)
+					if not IsSecretValue(color) and color
+						and not IsSecretValue(color.r) and not IsSecretValue(color.g) and not IsSecretValue(color.b) then
+						c = color
+					end
+				end
+			end
+		end
+		unit.levelcolorRed, unit.levelcolorGreen, unit.levelcolorBlue = c.r or 0.5, c.g or 0.5, c.b or 0.5 -- Default to grey if no color is found
 
 		unit.red, unit.green, unit.blue = UnitSelectionColor(unitid)
 		if IsSecretValue(unit.red) or IsSecretValue(unit.green) or IsSecretValue(unit.blue) then
@@ -1995,8 +2016,14 @@ do
 	-- UpdateIndicator_Standard: Updates Non-Delegate Indicators
 	function UpdateIndicator_Standard()
 		if IsPlateShown(nameplate) then
-			if unitcache.name ~= unit.name or unitcache.showName ~= unit.showName then UpdateIndicator_Name() end
-			if unitcache.level ~= unit.level or unitcache.isBoss ~= unit.isBoss then UpdateIndicator_Level() end
+			if unitcache.name ~= unit.name or unitcache.displayName ~= unit.displayName
+				or unitcache.showName ~= unit.showName then UpdateIndicator_Name() end
+			if unitcache.level ~= unit.level or unitcache.isBoss ~= unit.isBoss
+				or unitcache.levelcolorRed ~= unit.levelcolorRed
+				or unitcache.levelcolorGreen ~= unit.levelcolorGreen
+				or unitcache.levelcolorBlue ~= unit.levelcolorBlue then
+				UpdateIndicator_Level()
+			end
 			UpdateIndicator_RaidIcon()
 			if unitcache.isElite ~= unit.isElite or unitcache.isRare ~= unit.isRare then UpdateIndicator_EliteIcon() end
 		end
@@ -2711,6 +2738,7 @@ do
 	end
 
 	CoreEvents.RAID_TARGET_UPDATE = WorldConditionChanged
+	CoreEvents.PLAYER_LEVEL_UP = WorldConditionChanged
 	CoreEvents.PLAYER_FOCUS_CHANGED = WorldConditionChanged
 	CoreEvents.PLAYER_CONTROL_LOST = WorldConditionChanged
 	CoreEvents.PLAYER_CONTROL_GAINED = WorldConditionChanged
