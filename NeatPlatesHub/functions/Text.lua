@@ -57,8 +57,12 @@ local function DummyFunction() end
 ------------------------------------------------------------------------------
 
 local function UnitNameDelegate(unit)
-	local unitname = unit.name
-	if LocalVars.TextShowUnitTitle then unitname = unit.pvpname or unit.name end
+	local unitname = unit.displayName or unit.name
+	if LocalVars.TextShowUnitTitle and unit.pvpname then
+		if not unit.displayName or unit.pvpname:find(unit.displayName, 1, true) then
+			unitname = unit.pvpname
+		end
+	end
 	if LocalVars.TextShowServerIndicator and unit.realm then unitname = unitname.." (*)" end
 
 	-- Overwrite current name with Arena ID
