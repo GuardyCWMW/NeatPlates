@@ -1,12 +1,16 @@
 # NeatPlates
 
-## Unreleased
+## v7.6.4
 
-- Fixed Forever Lua errors when class-colouring spell targets or interrupt attribution by using an addon-owned colour formatter. Fixed party-aggro name colouring returning a table instead of numeric RGBA values.
-- Fixed duration text remaining blank for secret cast timestamps on Forever/Retail by formatting Blizzard duration objects directly, and cleared timer references on cast/plate cleanup.
-- Restored cast-bar spell targets and duration styles on Forever when the client supplies readable values, retaining native timer handling for secret cast times on modern clients.
-- Centered Forever's adjustable click area on the theme's health bar instead of the underlying Blizzard frame, preserving saved dimensions and stable bounds during hover enlargement. Name-only plates retain their previous placement.
-- Fixed Forever nameplate clicking and mouseover areas using the client's per-plate hit-test API instead of unavailable legacy sizing APIs. Clickable width/height, display offsets, and friendly/enemy click-through now apply to the real hitbox, independently of target/mouseover enlargement; the green preview follows those bounds.
+- Fixed a bug with the “Enemy Text Color by Health” setting.
+
+## v7.6.2/v7.6.3
+
+- Fixed the Forever enemy level colors so they match Blizzard’s difficulty colors, and updated Forever player nameplates to show both first and last names.
+
+## v7.6.1
+
+- Various bug fixes and features.
 
 ## v468-ce7.5.1
 

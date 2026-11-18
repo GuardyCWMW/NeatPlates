@@ -668,7 +668,6 @@ NeatPlatesHubDefaults.EnemyHeadlineColor = "ByReaction"
 -- [[
 local function SetNameColorDelegate(unit)
 	local color, colorMode
-	local alphaFade = 1
 	local func
 	local isFriendly = (unit.reaction == "FRIENDLY")
 
@@ -713,9 +712,11 @@ local function SetNameColorDelegate(unit)
 
 
 	if color then
-		return color.r, color.g, color.b , ((color.a or 1) * alphaFade)
+		local alpha = color.a
+		if not IsSecretValue(alpha) then alpha = alpha or 1 end
+		return color.r, color.g, color.b, alpha
 	else
-		return 1, 1, 1, 1 * alphaFade
+		return 1, 1, 1, 1
 	end
 end
 --]]
