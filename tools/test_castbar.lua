@@ -262,6 +262,7 @@ local colorVars = {
 local hasThreat = true
 local colorEnv = {
 	LocalVars = colorVars,
+	IsSecretValue = env.IsSecretValue,
 	GetFriendlyThreat = function() return hasThreat end,
 	StyleDelegate = function() return "Default" end,
 	FriendlyNameColorFunctions = {},
@@ -270,6 +271,15 @@ local colorEnv = {
 }
 local nameColor = load(section(read("NeatPlatesHub\\functions\\Color.lua"),
 	"local function SetNameColorDelegate", "\n--]]").."\nreturn SetNameColorDelegate", colorEnv)
+colorVars.EnemyNameColorMode = "ByHealth"
+colorEnv.EnemyNameColorFunctions.ByHealth = function()
+	return {r = secret, g = secret, b = secret, a = secret}
+end
+local red, green, blue, alpha = nameColor({reaction = "HOSTILE"})
+equal(red, secret)
+equal(green, secret)
+equal(blue, secret)
+equal(alpha, secret)
 env.activetheme.SetNameColor = nameColor
 env.activetheme.SetUnitName = function() return "Name" end
 env.UpdateIndicator_Subtext = function() end
